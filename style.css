@@ -185,3 +185,52 @@ li:hover {
 .shopee h3 { color: #ff5722; }
 .lazada h3 { color: #0d6efd; }
 .tiktok h3 { color: #000; }
+
+/* 🔥 MOBILE FIX ONLY */
+@media (max-width: 768px) {
+
+  body {
+    padding: 10px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .logo {
+    height: 40px;
+  }
+
+  .top-bar {
+    flex-direction: column;
+  }
+
+  .top-bar input,
+  .top-bar select,
+  .top-bar button {
+    width: 100%;
+  }
+
+  .approval {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .boards {
+    flex-direction: column;
+  }
+
+  .card {
+    width: 100%;
+  }
+
+  li {
+    flex-direction: column;
+  }
+
+  .courier {
+    width: 100%;
+  }
+}
