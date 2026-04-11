@@ -67,7 +67,7 @@ function addOrder() {
   const dateKey = getDateKey();
 
   if (!dateKey) return alert("Select date first");
-  if (orderId.length !== 4) return alert("Order ID must be 4 characters");
+  if (orderId.length !== 10) return alert("Order ID must be 4 characters");
 
   const data = getData();
 
