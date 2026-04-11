@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Order Checklist</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- 🔥 Header with Logo -->
+    <div class="header">
+      <h1>📦 Daily Orders</h1>
+      <img src="SOLARECO BLACK.png" class="logo">
+    </div>
+
+    <!-- Top Controls -->
+    <div class="top-bar">
+      <input type="date" id="date">
+
+      <select id="platform">
+        <option value="Shopee">Shopee</option>
+        <option value="Lazada">Lazada</option>
+        <option value="TikTok">TikTok</option>
+      </select>
+
+      <input type="text" id="orderId" maxlength="4" placeholder="XXXX">
+
+      <button onclick="addOrder()">Add</button>
+      <button onclick="printSummary()">🖨 Summary</button>
+    </div>
+
+    <div class="approval">
+  
+    <div>
+        <label>Prepared by:</label>
+        <select id="preparedBy">
+        <option value="Adrian 1">Adrian 1</option>
+        </select>
+    </div>
+
+    <div>
+        <label>Checked by:</label>
+        <select id="checkedBy">
+        <option value="Larah">Larah</option>
+        <option value="Elna">Elna</option>
+        <option value="Cha">Cha</option>
+        </select>
+    </div>
+
+    </div>
+
+    <!-- Boards -->
+    <div class="boards">
+      
+      <!-- Shopee -->
+      <div class="card shopee">
+        <h3>
+          🟠 Shopee 
+          (<span id="count-Shopee">0 / 0</span>)
+        </h3>
+        <ul id="Shopee"></ul>
+      </div>
+
+      <!-- Lazada -->
+      <div class="card lazada">
+        <h3>
+          🔵 Lazada 
+          (<span id="count-Lazada">0 / 0</span>)
+        </h3>
+        <ul id="Lazada"></ul>
+      </div>
+
+      <!-- TikTok -->
+      <div class="card tiktok">
+        <h3>
+          ⚫ TikTok 
+          (<span id="count-TikTok">0 / 0</span>)
+        </h3>
+        <ul id="TikTok"></ul>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
