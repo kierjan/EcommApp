@@ -566,6 +566,10 @@ input[type="number"] {
   min-width: 0;
 }
 
+.board-entry.is-collapsed {
+  display: none;
+}
+
 .board-list-card {
   min-width: 0;
 }
@@ -674,6 +678,18 @@ input[type="number"] {
   align-items: flex-start;
   gap: 4px;
   margin-bottom: 6px;
+}
+
+.board-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.board-head-btn {
+  min-width: 104px;
 }
 
 .board-head h2 {

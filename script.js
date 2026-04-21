@@ -4,7 +4,7 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},expandedLineId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
@@ -89,10 +89,20 @@ function bindEvents(){
   elements.checkedBy.addEventListener("input",saveApproval);
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
   elements.platformTabs.forEach((tab)=>tab.addEventListener("click",()=>setActivePlatform(tab.dataset.platformTab)));
-  platforms.forEach((platform)=>{
-    const draftSection=document.querySelector(`[data-draft-platform="${platform}"]`);
-    if(!draftSection){return;}
-    draftSection.addEventListener("click",handleDraftSectionClick);
+    platforms.forEach((platform)=>{
+      const draftSection=document.querySelector(`[data-draft-platform="${platform}"]`);
+      if(!draftSection){return;}
+      const openDraftBtn=document.getElementById(`openDraftBtn-${platform}`);
+      if(openDraftBtn){
+        openDraftBtn.addEventListener("click",()=>{
+          uiState.draftOpen[platform]=!isDraftExpanded(platform);
+          renderDraftSection(platform,readCatalog());
+          if(uiState.draftOpen[platform]){
+            getDraftElements(platform).orderId?.focus();
+          }
+        });
+      }
+      draftSection.addEventListener("click",handleDraftSectionClick);
     draftSection.addEventListener("input",handleDraftSectionInput);
     draftSection.addEventListener("change",handleDraftSectionChange);
     draftSection.addEventListener("keydown",(event)=>{
@@ -324,6 +334,9 @@ function ensureDraftState(){
     if(!uiState.drafts[platform]){
       uiState.drafts[platform]=buildEmptyDraft();
     }
+    if(typeof uiState.draftOpen[platform]!=="boolean"){
+      uiState.draftOpen[platform]=false;
+    }
   });
 }
 
@@ -346,14 +359,21 @@ function resetAllDrafts(){
 
 function getDraftElements(platform){
   return{
+    boardEntry:document.querySelector(`[data-draft-platform="${platform}"]`),
     orderId:document.getElementById(`orderId-${platform}`),
     orderSales:document.getElementById(`orderSales-${platform}`),
     orderCourier:document.getElementById(`orderCourier-${platform}`),
     orderTarget:document.getElementById(`orderTarget-${platform}`),
     orderItemRows:document.getElementById(`orderItemRows-${platform}`),
     addOrderBtn:document.getElementById(`addOrderBtn-${platform}`),
+    openDraftBtn:document.getElementById(`openDraftBtn-${platform}`),
     formMessage:document.getElementById(`formMessage-${platform}`)
   };
+}
+
+function isDraftExpanded(platform){
+  ensureDraftState();
+  return Boolean(uiState.draftOpen[platform]||hasDraftContent(getDraft(platform)));
 }
 
 async function renderApp(){
@@ -422,6 +442,9 @@ function renderSkuDatalist(catalog){
 function renderDraftSection(platform,catalog){
   const draft=getDraft(platform);
   const draftElements=getDraftElements(platform);
+  const isOpen=isDraftExpanded(platform);
+  if(draftElements.boardEntry){draftElements.boardEntry.classList.toggle("is-collapsed",!isOpen);}
+  if(draftElements.openDraftBtn){draftElements.openDraftBtn.textContent=isOpen?"Close Form":"Add Order";}
   draftElements.orderId.value=draft.orderId;
   draftElements.orderSales.value=draft.totalSales;
   if(draftElements.orderCourier){draftElements.orderCourier.value=draft.courier||"";}
@@ -807,11 +830,12 @@ async function addOrder(platform){
   uiState.activeView="orders";
   await writeDay(dateKey,day);
   resetDraft(platform);
+  uiState.draftOpen[platform]=false;
   clearDraftFormDom(platform);
   clearMessage();
   refreshDayViews();
   showDraftMessage(platform,`${platform} order ${orderId} added.`,"success");
-  getDraftElements(platform).orderId.focus();
+  getDraftElements(platform).openDraftBtn?.focus();
 }
 
 function prepareDraftItemsForSave(platform,catalogMap){
@@ -847,7 +871,16 @@ function handleDraftSectionClick(event){
   const action=event.target.dataset.action;
   const platform=event.target.dataset.platform||event.target.closest("[data-draft-platform]")?.dataset.draftPlatform;
   if(!action||!platform){return;}
+  if(action==="open-draft"){
+    uiState.draftOpen[platform]=!isDraftExpanded(platform);
+    renderDraftSection(platform,readCatalog());
+    if(uiState.draftOpen[platform]){
+      getDraftElements(platform).orderId?.focus();
+    }
+    return;
+  }
   if(action==="add-draft-line"){
+    uiState.draftOpen[platform]=true;
     getDraft(platform).items.push(createLineItem());
     clearDraftMessage(platform);
     updateDraftButtonState(platform);
@@ -872,6 +905,7 @@ function handleDraftSectionClick(event){
 function handleDraftSectionInput(event){
   const platform=event.target.closest("[data-draft-platform]")?.dataset.draftPlatform;
   if(!platform){return;}
+  uiState.draftOpen[platform]=true;
   const draft=getDraft(platform);
   const action=event.target.dataset.action;
   if(event.target.id===`orderId-${platform}`){
@@ -918,6 +952,7 @@ function handleDraftSectionChange(event){
   const platform=event.target.closest("[data-draft-platform]")?.dataset.draftPlatform;
   const action=event.target.dataset.action;
   if(!platform){return;}
+  uiState.draftOpen[platform]=true;
   if(event.target.id===`orderSales-${platform}`){
     const draft=getDraft(platform);
     const formattedValue=normalizeMoney(event.target.value);
@@ -1190,7 +1225,7 @@ function hasDraftContent(draft){
   if(!draft){return false;}
   if(sanitizeOrderId(draft.orderId)){return true;}
   if(typeof draft.totalSales==="string"&&draft.totalSales.trim()!==""){return true;}
-  return draft.items.some((item)=>sanitizeSku(item.sku||""));
+  return draft.items.some((item)=>isMeaningfulLineItem(item));
 }
 
 function getOrderLifecycleLabel(order){
