@@ -4,7 +4,7 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},expandedLineId:null,store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},expandedLineId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
 function cacheElements(){
   elements.date=document.getElementById("date");
+  elements.orderSearch=document.getElementById("orderSearch");
   elements.skuOptions=document.getElementById("skuOptions");
   elements.preparedBy=document.getElementById("preparedBy");
   elements.checkedBy=document.getElementById("checkedBy");
@@ -76,10 +77,14 @@ function bindEvents(){
   elements.printSummaryBtn.addEventListener("click",printSummary);
   elements.downloadSummaryBtn.addEventListener("click",()=>{void downloadSummaryImage();});
   elements.date.addEventListener("change",async()=>{
-    resetAllDrafts();
-    clearMessage();
-    await renderApp();
-  });
+      resetAllDrafts();
+      clearMessage();
+      await renderApp();
+    });
+    elements.orderSearch.addEventListener("input",()=>{
+      uiState.orderSearch=elements.orderSearch.value;
+      refreshDayViews();
+    });
   elements.preparedBy.addEventListener("input",saveApproval);
   elements.checkedBy.addEventListener("input",saveApproval);
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
@@ -112,6 +117,7 @@ function getTodayLocalISO(){
 function getDateKey(){return elements.date.value;}
 function sanitizeSku(value){return typeof value==="string"?value.toUpperCase().replace(/[^A-Z0-9]/g,""):"";}
 function sanitizeOrderId(value){return typeof value==="string"?value.trim():"";}
+function normalizeLookupText(value){return typeof value==="string"?value.trim().toLowerCase().replace(/\s+/g," "):"";}
 
 async function readStore(options={}){
   if(!options.forceReload&&uiState.store&&Object.keys(uiState.store).length){
@@ -264,7 +270,7 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():""};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():""};
 }
 
 function buildLegacyItems(rawOrder){
@@ -311,7 +317,7 @@ function createLineItem(overrides={}){
   return{uid:overrides.uid||buildUid("line"),sku:overrides.sku||"",item:overrides.item||"",srp:overrides.srp??null,qty:overrides.qty??1};
 }
 
-function isMeaningfulLineItem(item){return Boolean(item.sku||item.srp!==null);}
+function isMeaningfulLineItem(item){return Boolean(item?.sku||item?.item||item?.srp!==null);}
 
 function ensureDraftState(){
   platforms.forEach((platform)=>{
@@ -322,7 +328,7 @@ function ensureDraftState(){
 }
 
 function buildEmptyDraft(){
-  return{orderId:"",totalSales:"",items:[],message:"",messageTone:""};
+  return{orderId:"",totalSales:"",courier:"",items:[],message:"",messageTone:""};
 }
 
 function getDraft(platform){
@@ -342,6 +348,7 @@ function getDraftElements(platform){
   return{
     orderId:document.getElementById(`orderId-${platform}`),
     orderSales:document.getElementById(`orderSales-${platform}`),
+    orderCourier:document.getElementById(`orderCourier-${platform}`),
     orderTarget:document.getElementById(`orderTarget-${platform}`),
     orderItemRows:document.getElementById(`orderItemRows-${platform}`),
     addOrderBtn:document.getElementById(`addOrderBtn-${platform}`),
@@ -379,19 +386,37 @@ async function renderApp(){
 }
 
 function renderDayViews(day,catalog){
+  if(elements.orderSearch&&elements.orderSearch.value!==uiState.orderSearch){
+    elements.orderSearch.value=uiState.orderSearch;
+  }
   platforms.forEach((platform)=>{
     const platformOrders=day.platforms[platform]||[];
     renderDraftSection(platform,catalog);
-    renderPlatform(platform,getOrdersForStatus(platformOrders,"active"),catalog);
-    renderStatusPlatformList("cancelled",platform,getOrdersForStatus(platformOrders,"cancelled"),catalog);
-    renderStatusPlatformList("returned",platform,getOrdersForStatus(platformOrders,"returned"),catalog);
+    renderPlatform(platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"active")),catalog);
+    renderStatusPlatformList("cancelled",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"cancelled")),catalog);
+    renderStatusPlatformList("returned",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"returned")),catalog);
   });
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
 }
 
 function renderSkuDatalist(catalog){
-  elements.skuOptions.innerHTML=catalog.map((entry)=>`<option value="${escapeHtml(entry.sku)}" label="${escapeHtml(entry.item)}"></option>`).join("");
+  const options=[];
+  const seen=new Set();
+  catalog.forEach((entry)=>{
+    const skuKey=`sku:${entry.sku}`;
+    if(!seen.has(skuKey)){
+      seen.add(skuKey);
+      options.push(`<option value="${escapeHtml(entry.sku)}" label="${escapeHtml(entry.item)}"></option>`);
+    }
+    const itemLabel=(entry.item||"").trim();
+    const itemKey=`item:${normalizeLookupText(itemLabel)}`;
+    if(itemLabel&&!seen.has(itemKey)){
+      seen.add(itemKey);
+      options.push(`<option value="${escapeHtml(itemLabel)}" label="${escapeHtml(entry.sku)}"></option>`);
+    }
+  });
+  elements.skuOptions.innerHTML=options.join("");
 }
 
 function renderDraftSection(platform,catalog){
@@ -399,6 +424,7 @@ function renderDraftSection(platform,catalog){
   const draftElements=getDraftElements(platform);
   draftElements.orderId.value=draft.orderId;
   draftElements.orderSales.value=draft.totalSales;
+  if(draftElements.orderCourier){draftElements.orderCourier.value=draft.courier||"";}
   draftElements.orderItemRows.innerHTML="";
   if(!draft.items.length){
     const emptyState=document.createElement("div");
@@ -419,11 +445,10 @@ function renderPlatform(platform,orders,catalog){
   const list=document.getElementById(platform);
   list.innerHTML="";
   const draft=getDraft(platform);
-  const ordered=[...orders].sort((left,right)=>left.id.localeCompare(right.id,undefined,{numeric:true,sensitivity:"base"}));
   if(hasDraftContent(draft)){
     list.appendChild(createDraftOrderCard(platform,draft));
   }
-  if(!ordered.length&&!hasDraftContent(draft)){
+  if(!orders.length&&!hasDraftContent(draft)){
     const emptyItem=document.createElement("li");
     emptyItem.className="empty-state";
     emptyItem.textContent=`No ${platform} orders for this date yet.`;
@@ -431,7 +456,7 @@ function renderPlatform(platform,orders,catalog){
     updateCounts(platform,orders);
     return;
   }
-  ordered.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
+  orders.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
   updateCounts(platform,orders);
 }
 
@@ -439,8 +464,7 @@ function renderStatusPlatformList(status,platform,orders,catalog){
   const list=document.getElementById(getStatusListId(status,platform));
   if(!list){return;}
   list.innerHTML="";
-  const ordered=[...orders].sort((left,right)=>left.id.localeCompare(right.id,undefined,{numeric:true,sensitivity:"base"}));
-  if(!ordered.length){
+  if(!orders.length){
     const emptyItem=document.createElement("li");
     emptyItem.className="empty-state";
     emptyItem.textContent=`No ${platform} ${getStatusLabel(status).toLowerCase()} orders for this date yet.`;
@@ -448,7 +472,7 @@ function renderStatusPlatformList(status,platform,orders,catalog){
     updateArchiveCount(status,platform,orders.length);
     return;
   }
-  ordered.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
+  orders.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
   updateArchiveCount(status,platform,orders.length);
 }
 
@@ -470,6 +494,7 @@ function clearDraftFormDom(platform){
   const draftElements=getDraftElements(platform);
   if(draftElements.orderId){draftElements.orderId.value="";}
   if(draftElements.orderSales){draftElements.orderSales.value="";}
+  if(draftElements.orderCourier){draftElements.orderCourier.value="";}
   if(draftElements.orderTarget){draftElements.orderTarget.value=formatMoney(null);}
   if(draftElements.orderItemRows){
     draftElements.orderItemRows.innerHTML="";
@@ -488,7 +513,7 @@ function clearDraftFormDom(platform){
 function createDraftOrderCard(platform,draft){
   const item=document.createElement("li");
   item.className="order-item draft-order-item";
-  const meaningfulItems=draft.items.filter((line)=>sanitizeSku(line.sku||""));
+  const meaningfulItems=draft.items.filter((line)=>isMeaningfulLineItem(line));
   const itemsHtml=meaningfulItems.length?meaningfulItems.map((line,index)=>`
     <div class="draft-list-line">
       <span class="line-number">${index+1}</span>
@@ -583,10 +608,11 @@ function createOrderCard(platform,order,catalog){
       </label>
       ${reasonFieldHtml}
     </div>
-    <div class="order-checks">
-      <label class="check-item"><input type="checkbox" data-action="picture" ${order.picture?"checked":""}><span>Picture sent</span></label>
-      <label class="check-item"><input type="checkbox" data-action="pickup" ${order.pickup?"checked":""}><span>Picked up</span></label>
-    </div>
+      <div class="order-checks">
+        <label class="check-item"><input type="checkbox" data-action="picture" ${order.picture?"checked":""}><span>Picture sent</span></label>
+        <label class="check-item"><input type="checkbox" data-action="pickup" ${order.pickup?"checked":""}><span>Picked up</span></label>
+        <label class="check-item"><input type="checkbox" data-action="invoiceRequested" ${order.invoiceRequested?"checked":""}><span>Invoice requested</span></label>
+      </div>
     <div class="status-row">
       <p class="status-text">${getOrderLifecycleLabel(order)}</p>
       <span class="result-badge ${salesOutcome.tone}">${salesOutcome.label}</span>
@@ -623,43 +649,71 @@ function createLineItemRow(item,catalog,mode){
   return wrapper.firstElementChild;
 }
 
+function findCatalogEntryBySearch(value,catalog){
+  const rawValue=typeof value==="string"?value.trim():"";
+  if(!rawValue){return null;}
+  const normalizedSku=sanitizeSku(rawValue);
+  const normalizedText=normalizeLookupText(rawValue);
+  if(normalizedSku){
+    const exactSku=catalog.find((entry)=>entry.sku===normalizedSku);
+    if(exactSku){return exactSku;}
+  }
+  if(normalizedText){
+    const exactItem=catalog.find((entry)=>normalizeLookupText(entry.item)===normalizedText);
+    if(exactItem){return exactItem;}
+  }
+  if(normalizedSku){
+    const partialSku=catalog.find((entry)=>entry.sku.includes(normalizedSku));
+    if(partialSku){return partialSku;}
+  }
+  if(normalizedText){
+    const partialItem=catalog.find((entry)=>normalizeLookupText(entry.item).includes(normalizedText));
+    if(partialItem){return partialItem;}
+  }
+  return null;
+}
+
 function buildLineItemRowHtml(item,catalog,mode){
   const lineTotal=getLineItemTotal(item);
   const removeAction=mode==="draft"?"remove-draft-line":"remove-line";
   const skuAction=mode==="draft"?"draft-line-sku":"line-sku";
   const qtyAction=mode==="draft"?"draft-line-qty":"line-qty";
+  const srpAction=mode==="draft"?"draft-line-srp":"line-srp";
+  const lookupValue=item.sku||item.item||"";
   if(mode==="draft"){
-    return `
-      <div class="line-item-row draft-line-row" data-line-id="${item.uid}">
-        <label class="field draft-sku-field">
-          <span>SKU</span>
-          <input type="text" list="skuOptions" value="${escapeHtml(item.sku)}" data-action="${skuAction}" placeholder="Search SKU">
-        </label>
-        <label class="field draft-qty-field">
-          <span>Qty</span>
-          <input type="number" min="1" step="1" value="${item.qty}" data-action="${qtyAction}">
-        </label>
-        <button type="button" class="line-item-remove" data-action="${removeAction}">Remove</button>
-        <div class="draft-line-caption">
-          <span class="draft-line-item" data-role="item-name">${escapeHtml(item.item||"Select a SKU")}</span>
-          <span class="draft-line-sep">|</span>
-          <span data-role="unit-srp">SRP ${formatMoney(item.srp)}</span>
-          <span class="draft-line-sep">|</span>
-          <span data-role="line-total">Total ${formatMoney(lineTotal)}</span>
+      return `
+        <div class="line-item-row draft-line-row" data-line-id="${item.uid}">
+          <label class="field draft-sku-field">
+            <span>SKU</span>
+            <input type="text" list="skuOptions" value="${escapeHtml(lookupValue)}" data-action="${skuAction}" placeholder="Search SKU or item">
+          </label>
+          <label class="field draft-srp-field">
+            <span>SRP</span>
+            <input type="number" min="0" step="0.01" value="${item.srp===null?"":formatMoney(item.srp)}" data-action="${srpAction}" data-role="unit-srp" placeholder="0.00">
+          </label>
+          <label class="field draft-qty-field">
+            <span>Qty</span>
+            <input type="number" min="1" step="1" value="${item.qty}" data-action="${qtyAction}">
+          </label>
+          <button type="button" class="line-item-remove" data-action="${removeAction}">Remove</button>
+          <div class="draft-line-caption">
+            <span class="draft-line-item" data-role="item-name">${escapeHtml(item.item||"Type an item or choose from the catalog")}</span>
+            <span class="draft-line-sep">|</span>
+            <span data-role="line-total">Total ${formatMoney(lineTotal)}</span>
+          </div>
         </div>
-      </div>
-    `;
+      `;
   }
   return `
-    <div class="line-item-row" data-line-id="${item.uid}">
-      <label class="field">
-        <span>SKU</span>
-        <input type="text" list="skuOptions" value="${escapeHtml(item.sku)}" data-action="${skuAction}" placeholder="Search SKU">
-      </label>
-      <label class="field readonly-field">
-        <span>Item</span>
-        <input type="text" value="${escapeHtml(item.item||"")}" data-role="item-name" readonly>
-      </label>
+      <div class="line-item-row" data-line-id="${item.uid}">
+        <label class="field">
+          <span>SKU</span>
+          <input type="text" list="skuOptions" value="${escapeHtml(lookupValue)}" data-action="${skuAction}" placeholder="Search SKU or item">
+        </label>
+        <label class="field readonly-field">
+          <span>Item</span>
+          <input type="text" value="${escapeHtml(item.item||"")}" data-role="item-name" readonly>
+        </label>
       <label class="field readonly-field">
         <span>Unit SRP</span>
         <input type="text" value="${formatMoney(item.srp)}" data-role="unit-srp" readonly>
@@ -679,6 +733,12 @@ function buildLineItemRowHtml(item,catalog,mode){
 
 function getOrdersForStatus(orders,status){
   return (orders||[]).filter((order)=>normalizeOrderStatus(order.status)===status);
+}
+
+function filterOrdersByOrderId(orders){
+  const query=sanitizeOrderId(uiState.orderSearch).toLowerCase();
+  if(!query){return orders||[];}
+  return (orders||[]).filter((order)=>sanitizeOrderId(order.id).toLowerCase().includes(query));
 }
 
 function getStatusLabel(status){
@@ -728,19 +788,21 @@ async function addOrder(platform){
   const draft=getDraft(platform);
   const draftElements=getDraftElements(platform);
   const orderId=sanitizeOrderId(draft.orderId);
+  const selectedCourier=courierOptions.includes(draft.courier)?draft.courier:"";
   const catalogMap=buildCatalogMap(readCatalog());
   const preparedItems=prepareDraftItemsForSave(platform,catalogMap);
   const totalSales=normalizeMoney(draft.totalSales);
   const hasSalesValue=typeof draft.totalSales==="string"&&draft.totalSales.trim()!=="";
   if(!dateKey){showMessage("Select a date before adding an order.","error");elements.date.focus();return;}
   if(!orderId){showDraftMessage(platform,"Order ID is required.","error");draftElements.orderId.focus();return;}
+  if(!selectedCourier){showDraftMessage(platform,"Courier is required.","error");draftElements.orderCourier?.focus();return;}
   if(hasSalesValue&&totalSales===null){showDraftMessage(platform,"Total Sales must be a valid number.","error");draftElements.orderSales.focus();return;}
   if(preparedItems.error){showDraftMessage(platform,preparedItems.error,"error");return;}
   const store=normalizeStore(uiState.store||await readStore());
   const day=ensureDay(store,dateKey);
   const alreadyExists=day.platforms[platform].some((order)=>order.id.toLowerCase()===orderId.toLowerCase());
   if(alreadyExists){showDraftMessage(platform,`${platform} order ${orderId} already exists for this date.`,"error");draftElements.orderId.focus();return;}
-  day.platforms[platform].unshift({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,courier:courierOptions[0],picture:false,pickup:false,status:"active"});
+  day.platforms[platform].push({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,courier:selectedCourier,picture:false,pickup:false,status:"active"});
   uiState.activePlatform=platform;
   uiState.activeView="orders";
   await writeDay(dateKey,day);
@@ -756,17 +818,18 @@ function prepareDraftItemsForSave(platform,catalogMap){
   const normalized=getDraft(platform).items.map((item)=>{
     const sku=sanitizeSku(item.sku||"");
     const catalogEntry=sku?catalogMap.get(sku):null;
+    const itemName=typeof item.item==="string"?item.item.trim():"";
     return{
       uid:buildUid("line"),
-      sku,
-      item:sku?(catalogEntry?.item??item.item??""):"",
+      sku:catalogEntry?sku:"",
+      item:catalogEntry?.item??itemName,
       qty:normalizeQuantity(item.qty),
-      srp:sku?(catalogEntry?.srp??item.srp??null):null
+      srp:catalogEntry?.srp??normalizeMoney(item.srp)
     };
-  }).filter((item)=>item.sku);
+  }).filter((item)=>item.sku||item.item);
   if(!normalized.length){return{items:[],error:"Add at least one valid SKU line before saving the order."};}
-  if(normalized.some((item)=>item.qty===null||item.srp===null)){
-    return{items:[],error:"Each SKU line needs a valid SKU and quantity."};
+  if(normalized.some((item)=>item.qty===null||item.srp===null||!item.item)){
+    return{items:[],error:"Each SKU line needs an item, SRP, and quantity."};
   }
   return{items:mergeLineItems(normalized)};
 }
@@ -822,21 +885,23 @@ function handleDraftSectionInput(event){
     draft.totalSales=event.target.value;
     clearDraftMessage(platform);
     updateDraftButtonState(platform);
+    return;
+  }
+  if(event.target.id===`orderCourier-${platform}`){
+    draft.courier=courierOptions.includes(event.target.value)?event.target.value:"";
+    clearDraftMessage(platform);
+    updateDraftButtonState(platform);
     refreshDayViews();
     return;
   }
   const line=findDraftLine(platform,event.target);
   if(!line){return;}
   if(action==="draft-line-sku"){
-    const catalogMap=buildCatalogMap(readCatalog());
-    line.sku=sanitizeSku(event.target.value);
-    line.item=line.sku?(catalogMap.get(line.sku)?.item??""):"";
-    line.srp=line.sku?(catalogMap.get(line.sku)?.srp??null):null;
-    syncDraftLineRow(event.target,line);
-    updateDraftTargetField(platform);
     clearDraftMessage(platform);
-    updateDraftButtonState(platform);
-    refreshDayViews();
+    return;
+  }
+  if(action==="draft-line-srp"){
+    clearDraftMessage(platform);
     return;
   }
   if(action==="draft-line-qty"){
@@ -852,15 +917,37 @@ function handleDraftSectionInput(event){
 function handleDraftSectionChange(event){
   const platform=event.target.closest("[data-draft-platform]")?.dataset.draftPlatform;
   const action=event.target.dataset.action;
-  if(!platform||!action){return;}
+  if(!platform){return;}
+  if(event.target.id===`orderSales-${platform}`){
+    const draft=getDraft(platform);
+    const formattedValue=normalizeMoney(event.target.value);
+    draft.totalSales=event.target.value.trim()===""?"":formattedValue===null?event.target.value:formatMoney(formattedValue);
+    if(formattedValue!==null){event.target.value=formatMoney(formattedValue);}
+    clearDraftMessage(platform);
+    updateDraftButtonState(platform);
+    refreshDayViews();
+    return;
+  }
+  if(event.target.id===`orderCourier-${platform}`){
+    const draft=getDraft(platform);
+    draft.courier=courierOptions.includes(event.target.value)?event.target.value:"";
+    clearDraftMessage(platform);
+    updateDraftButtonState(platform);
+    refreshDayViews();
+    return;
+  }
+  if(!action){return;}
   const line=findDraftLine(platform,event.target);
   if(!line){return;}
   if(action==="draft-line-sku"){
-    const catalogMap=buildCatalogMap(readCatalog());
-    line.sku=sanitizeSku(event.target.value);
-    line.item=line.sku?(catalogMap.get(line.sku)?.item??""):"";
-    line.srp=line.sku?(catalogMap.get(line.sku)?.srp??null):null;
+    const catalog=readCatalog();
+    const catalogEntry=findCatalogEntryBySearch(event.target.value,catalog);
+    const rawValue=typeof event.target.value==="string"?event.target.value.trim():"";
+    line.sku=catalogEntry?.sku??"";
+    line.item=catalogEntry?.item??rawValue;
+    line.srp=catalogEntry?.srp??line.srp;
   }
+  if(action==="draft-line-srp"){line.srp=normalizeMoney(event.target.value);}
   if(action==="draft-line-qty"){line.qty=normalizeQuantity(event.target.value)??1;}
   syncDraftLineRow(event.target,line);
   updateDraftTargetField(platform);
@@ -923,18 +1010,25 @@ function handleSavedOrderChange(event){
     else{uiState.activeView="orders";}
   }
   if(action==="reason"){order.record.reason=event.target.value.trim();}
-  if(action==="totalSales"){order.record.totalSales=normalizeMoney(event.target.value);}
+  if(action==="totalSales"){
+    order.record.totalSales=normalizeMoney(event.target.value);
+    if(order.record.totalSales!==null){event.target.value=formatMoney(order.record.totalSales);}
+  }
   if(action==="picture"){order.record.picture=event.target.checked;}
   if(action==="pickup"){order.record.pickup=event.target.checked;}
+  if(action==="invoiceRequested"){order.record.invoiceRequested=event.target.checked;}
   if(action==="line-sku"||action==="line-qty"){
     const line=findSavedLineItem(order.record,event.target);
     if(!line){return;}
     if(action==="line-sku"){
-      const catalogMap=buildCatalogMap(readCatalog());
-      line.sku=sanitizeSku(event.target.value);
-      line.item=line.sku?(catalogMap.get(line.sku)?.item??""):"";
-      line.srp=line.sku?(catalogMap.get(line.sku)?.srp??null):null;
+      const catalog=readCatalog();
+      const catalogEntry=findCatalogEntryBySearch(event.target.value,catalog);
+      const rawValue=typeof event.target.value==="string"?event.target.value.trim():"";
+      line.sku=catalogEntry?.sku??"";
+      line.item=catalogEntry?.item??rawValue;
+      line.srp=catalogEntry?.srp??line.srp;
     }
+    if(action==="line-srp"){line.srp=normalizeMoney(event.target.value);}
     if(action==="line-qty"){line.qty=normalizeQuantity(event.target.value)??1;}
     order.record.items=mergeLineItems(order.record.items);
   }
@@ -971,8 +1065,8 @@ function syncDraftItemsWithCatalog(catalogMap){
     draft.items=draft.items.map((item)=>({
       ...item,
       sku:sanitizeSku(item.sku||""),
-      item:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.item??item.item??""):"",
-      srp:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.srp??null):null,
+      item:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.item??item.item??""):(item.item??""),
+      srp:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.srp??item.srp??null):(item.srp??null),
       qty:normalizeQuantity(item.qty)??1
     }));
   });
@@ -1060,7 +1154,7 @@ function syncDraftLineRow(target,line){
   const itemNameField=row.querySelector('[data-role="item-name"]');
   const unitSrpField=row.querySelector('[data-role="unit-srp"]');
   const lineTotalField=row.querySelector('[data-role="line-total"]');
-  const itemValue=line.item||"Select a SKU";
+  const itemValue=line.item||"Type an item or choose from the catalog";
   const unitValue=formatMoney(line.srp);
   const totalValue=formatMoney(getLineItemTotal(line));
   if(itemNameField){
