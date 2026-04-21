@@ -703,9 +703,10 @@ function buildLineItemRowHtml(item,catalog,mode){
   const qtyAction=mode==="draft"?"draft-line-qty":"line-qty";
   const srpAction=mode==="draft"?"draft-line-srp":"line-srp";
   const lookupValue=item.sku||item.item||"";
+  const qtyValue=item.qty===""?"":String(item.qty??1);
   if(mode==="draft"){
-      return `
-        <div class="line-item-row draft-line-row" data-line-id="${item.uid}">
+        return `
+          <div class="line-item-row draft-line-row" data-line-id="${item.uid}">
           <label class="field draft-sku-field">
             <span>SKU</span>
             <input type="text" list="skuOptions" value="${escapeHtml(lookupValue)}" data-action="${skuAction}" placeholder="Search SKU or item">
@@ -714,10 +715,10 @@ function buildLineItemRowHtml(item,catalog,mode){
             <span>SRP</span>
             <input type="number" min="0" step="0.01" value="${item.srp===null?"":formatMoney(item.srp)}" data-action="${srpAction}" data-role="unit-srp" placeholder="0.00">
           </label>
-          <label class="field draft-qty-field">
-            <span>Qty</span>
-            <input type="number" min="1" step="1" value="${item.qty}" data-action="${qtyAction}">
-          </label>
+            <label class="field draft-qty-field">
+              <span>Qty</span>
+              <input type="number" min="1" step="1" value="${qtyValue}" data-action="${qtyAction}">
+            </label>
           <button type="button" class="line-item-remove" data-action="${removeAction}">Remove</button>
           <div class="draft-line-caption">
             <span class="draft-line-item" data-role="item-name">${escapeHtml(item.item||"Type an item or choose from the catalog")}</span>
@@ -939,12 +940,12 @@ function handleDraftSectionInput(event){
     return;
   }
   if(action==="draft-line-qty"){
-    line.qty=normalizeQuantity(event.target.value)??1;
+    line.qty=event.target.value;
     syncDraftLineRow(event.target,line);
     updateDraftTargetField(platform);
     clearDraftMessage(platform);
     updateDraftButtonState(platform);
-    refreshDayViews();
+    return;
   }
 }
 
@@ -983,7 +984,12 @@ function handleDraftSectionChange(event){
     line.srp=catalogEntry?.srp??line.srp;
   }
   if(action==="draft-line-srp"){line.srp=normalizeMoney(event.target.value);}
-  if(action==="draft-line-qty"){line.qty=normalizeQuantity(event.target.value)??1;}
+  if(action==="draft-line-qty"){
+    const rawQty=typeof event.target.value==="string"?event.target.value.trim():"";
+    const normalizedQty=normalizeQuantity(rawQty);
+    line.qty=rawQty===""?"":normalizedQty;
+    if(normalizedQty!==null){event.target.value=String(normalizedQty);}
+  }
   syncDraftLineRow(event.target,line);
   updateDraftTargetField(platform);
   updateDraftButtonState(platform);
@@ -1102,7 +1108,7 @@ function syncDraftItemsWithCatalog(catalogMap){
       sku:sanitizeSku(item.sku||""),
       item:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.item??item.item??""):(item.item??""),
       srp:item.sku?(catalogMap.get(sanitizeSku(item.sku))?.srp??item.srp??null):(item.srp??null),
-      qty:normalizeQuantity(item.qty)??1
+      qty:item.qty===""?"":(normalizeQuantity(item.qty)??1)
     }));
   });
 }
@@ -1189,6 +1195,7 @@ function syncDraftLineRow(target,line){
   const itemNameField=row.querySelector('[data-role="item-name"]');
   const unitSrpField=row.querySelector('[data-role="unit-srp"]');
   const lineTotalField=row.querySelector('[data-role="line-total"]');
+  const qtyField=row.querySelector('[data-action="draft-line-qty"]');
   const itemValue=line.item||"Type an item or choose from the catalog";
   const unitValue=formatMoney(line.srp);
   const totalValue=formatMoney(getLineItemTotal(line));
@@ -1203,6 +1210,9 @@ function syncDraftLineRow(target,line){
   if(lineTotalField){
     if("value" in lineTotalField){lineTotalField.value=totalValue;}
     else{lineTotalField.textContent=`Total ${totalValue}`;}
+  }
+  if(qtyField&&document.activeElement!==qtyField){
+    qtyField.value=line.qty===""?"":String(line.qty??1);
   }
 }
 
@@ -1240,8 +1250,9 @@ function isComplete(order){
 }
 
 function getLineItemTotal(item){
-  if(item.srp===null){return null;}
-  return Number((item.srp*item.qty).toFixed(2));
+  const qty=normalizeQuantity(item?.qty);
+  if(item.srp===null||qty===null){return null;}
+  return Number((item.srp*qty).toFixed(2));
 }
 
 function getLineItemsTarget(items){
