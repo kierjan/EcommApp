@@ -77,13 +77,16 @@
 
     <section class="view-switcher" aria-label="Choose order page">
       <button type="button" class="view-tab is-active" data-view-tab="orders" aria-pressed="true">
-        Active Orders
+        <span>Active Orders</span>
+        <span class="view-tab-badge" data-view-count="orders">0</span>
       </button>
       <button type="button" class="view-tab" data-view-tab="cancelled" aria-pressed="false">
-        Cancelled
+        <span>Cancelled</span>
+        <span class="view-tab-badge" data-view-count="cancelled">0</span>
       </button>
       <button type="button" class="view-tab" data-view-tab="returned" aria-pressed="false">
-        Returned
+        <span>Returned</span>
+        <span class="view-tab-badge" data-view-count="returned">0</span>
       </button>
     </section>
 

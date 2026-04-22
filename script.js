@@ -29,6 +29,11 @@ function cacheElements(){
   elements.printSummaryBtn=document.getElementById("printSummaryBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
+  elements.viewTabBadges={
+    orders:document.querySelector('[data-view-count="orders"]'),
+    cancelled:document.querySelector('[data-view-count="cancelled"]'),
+    returned:document.querySelector('[data-view-count="returned"]')
+  };
   elements.viewSections=Array.from(document.querySelectorAll("[data-view-section]"));
   elements.platformTabs=Array.from(document.querySelectorAll("[data-platform-tab]"));
   elements.platformBoards=Array.from(document.querySelectorAll("[data-platform-board]"));
@@ -386,6 +391,7 @@ async function renderApp(){
   renderSkuDatalist(catalog);
   syncDraftItemsWithCatalog(catalogMap);
   if(!dateKey){
+    updateViewTabBadges({totalOrders:0,cancelled:0,returned:0});
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
       renderPlatform(platform,[],catalog);
@@ -416,6 +422,7 @@ function renderDayViews(day,catalog){
     renderStatusPlatformList("cancelled",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"cancelled")),catalog);
     renderStatusPlatformList("returned",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"returned")),catalog);
   });
+  updateViewTabBadges(buildDaySummary(day));
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
 }
@@ -783,6 +790,22 @@ function updateArchiveCount(status,platform,total){
   const label=status==="cancelled"?"cancelled":"returned";
   const element=document.getElementById(`count-${status.charAt(0).toUpperCase()+status.slice(1)}-${platform}`);
   if(element){element.textContent=`${total} ${label}`;}
+}
+
+function updateViewTabBadges(summary){
+  const activeCount=Math.max(0,(summary?.totalOrders||0)-(summary?.cancelled||0)-(summary?.returned||0));
+  const counts={
+    orders:activeCount,
+    cancelled:summary?.cancelled||0,
+    returned:summary?.returned||0
+  };
+
+  Object.entries(elements.viewTabBadges||{}).forEach(([view,badge])=>{
+    if(!badge){return;}
+    const count=counts[view]||0;
+    badge.textContent=String(count);
+    badge.setAttribute("aria-label",`${count} ${view} orders`);
+  });
 }
 
 function setActiveView(view){
