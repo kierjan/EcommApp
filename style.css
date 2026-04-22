@@ -232,7 +232,7 @@ button {
 
 .view-switcher {
   display: flex;
-  gap: 6px;
+  gap: 18px;
   flex-wrap: wrap;
   margin-bottom: 8px;
 }
@@ -244,7 +244,7 @@ button {
   justify-content: center;
   gap: 7px;
   min-height: 32px;
-  padding: 0 16px;
+  padding: 0 22px;
   border: 0;
   border-radius: 999px;
   color: var(--text);
@@ -1174,12 +1174,13 @@ input[type="number"] {
   .view-switcher {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
   }
 
   .view-tab {
     justify-content: center;
     min-height: 42px;
-    padding: 0 12px;
+    padding: 0 22px;
     font-size: 0.76rem;
   }
 
