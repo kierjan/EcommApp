@@ -37,6 +37,11 @@ function cacheElements(){
   };
   elements.viewSections=Array.from(document.querySelectorAll("[data-view-section]"));
   elements.platformTabs=Array.from(document.querySelectorAll("[data-platform-tab]"));
+  elements.platformTabCounts={
+    Shopee:document.querySelector('[data-platform-count="Shopee"]'),
+    Lazada:document.querySelector('[data-platform-count="Lazada"]'),
+    TikTok:document.querySelector('[data-platform-count="TikTok"]')
+  };
   elements.platformBoards=Array.from(document.querySelectorAll("[data-platform-board]"));
   elements.orderLists=Array.from(document.querySelectorAll(".order-list"));
 }
@@ -402,6 +407,7 @@ async function renderApp(){
   syncDraftItemsWithCatalog(catalogMap);
   if(!dateKey){
     updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
+    updatePlatformTabCounts({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
       renderPlatform(platform,[],catalog);
@@ -435,6 +441,7 @@ function renderDayViews(day,catalog){
     renderStatusPlatformList("returned",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"returned")),catalog);
   });
   updateViewTabBadges(buildDaySummary(day));
+  updatePlatformTabCounts(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
 }
@@ -887,6 +894,29 @@ function updateArchiveCount(status,platform,total){
   if(element){element.textContent=`${total} ${label}`;}
 }
 
+function updatePlatformTabCounts(day){
+  const sourcePlatforms=day?.platforms||{};
+  platforms.forEach((platform)=>{
+    const allOrders=sourcePlatforms[platform]||[];
+    let visibleOrders=allOrders;
+    if(uiState.activeView==="orders"){
+      visibleOrders=getOrdersForStatus(allOrders,"active");
+    }else if(uiState.activeView==="requests"){
+      visibleOrders=getOrdersWithCancelRequest(allOrders);
+    }else if(uiState.activeView==="cancelled"){
+      visibleOrders=getOrdersForStatus(allOrders,"cancelled");
+    }else if(uiState.activeView==="returned"){
+      visibleOrders=getOrdersForStatus(allOrders,"returned");
+    }
+    const count=filterOrdersByOrderId(visibleOrders).length;
+    const countElement=elements.platformTabCounts?.[platform];
+    if(countElement){
+      countElement.textContent=`(${count})`;
+      countElement.setAttribute("aria-label",`${count} ${platform} orders`);
+    }
+  });
+}
+
 function updateRequestCount(platform,total){
   const element=document.getElementById(`count-Requests-${platform}`);
   if(element){element.textContent=`${total} request${total===1?"":"s"}`;}
@@ -924,6 +954,9 @@ function setActiveView(view){
     tab.setAttribute("aria-pressed",String(isActive));
   });
   elements.viewSections.forEach((section)=>section.classList.toggle("is-active",section.dataset.viewSection===safeView));
+  const dateKey=getDateKey();
+  const day=dateKey?ensureDay(normalizeStore(uiState.store||{}),dateKey):{platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))};
+  updatePlatformTabCounts(day);
 }
 
 function setActivePlatform(platform){

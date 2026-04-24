@@ -307,6 +307,10 @@ button {
 }
 
 .platform-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-height: 34px;
   padding: 0 10px;
   border: 0;
@@ -315,6 +319,12 @@ button {
   background: rgba(20, 32, 51, 0.08);
   font-size: 0.76rem;
   font-weight: 700;
+}
+
+.platform-tab-count {
+  color: inherit;
+  opacity: 0.72;
+  font-weight: 600;
 }
 
 .platform-tab.is-active {
