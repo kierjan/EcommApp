@@ -814,6 +814,18 @@ input[type="number"] {
   font-weight: 700;
 }
 
+.request-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(196, 71, 71, 0.12);
+  color: var(--danger);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
 .draft-list-line {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
@@ -917,6 +929,56 @@ input[type="number"] {
 
 .reason-field {
   flex: 1 1 100%;
+}
+
+.cancel-request-box,
+.request-card-copy {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(196, 71, 71, 0.18);
+  background: rgba(196, 71, 71, 0.05);
+}
+
+.cancel-request-box.is-pending {
+  gap: 6px;
+}
+
+.cancel-request-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cancel-request-copy,
+.request-card-reason {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.request-card-meta {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.request-order-item {
+  border-color: rgba(196, 71, 71, 0.28);
+  background: linear-gradient(180deg, rgba(196, 71, 71, 0.08), rgba(196, 71, 71, 0.03));
+}
+
+.request-order-item .status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(196, 71, 71, 0.12);
+}
+
+.request-order-item .button-row {
+  justify-content: flex-end;
 }
 
 .reason-input {
@@ -1173,7 +1235,7 @@ input[type="number"] {
 @media (max-width: 760px) {
   .view-switcher {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
   }
 

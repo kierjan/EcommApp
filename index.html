@@ -80,6 +80,10 @@
         <span>Active Orders</span>
         <span class="view-tab-badge" data-view-count="orders">0</span>
       </button>
+      <button type="button" class="view-tab" data-view-tab="requests" aria-pressed="false">
+        <span>Cancel Requests</span>
+        <span class="view-tab-badge" data-view-count="requests">0</span>
+      </button>
       <button type="button" class="view-tab" data-view-tab="cancelled" aria-pressed="false">
         <span>Cancelled</span>
         <span class="view-tab-badge" data-view-count="cancelled">0</span>
@@ -286,6 +290,49 @@
           <ul class="order-list" id="TikTok" aria-live="polite"></ul>
         </article>
       </div>
+      </section>
+    </section>
+
+    <section class="view-section" data-view-section="requests" aria-label="Cancel request page">
+      <section class="board-grid" aria-label="Cancel request boards">
+        <div class="marketplace-column shopee is-active" data-platform-board="Shopee">
+          <article class="board-card board-list-card">
+            <div class="board-list-head">
+              <div>
+                <p class="platform-tag">Marketplace</p>
+                <h3>Shopee Cancel Requests</h3>
+              </div>
+              <span class="count-pill" id="count-Requests-Shopee">0 requests</span>
+            </div>
+            <ul class="order-list" id="Requests-Shopee" aria-live="polite"></ul>
+          </article>
+        </div>
+
+        <div class="marketplace-column lazada" data-platform-board="Lazada">
+          <article class="board-card board-list-card">
+            <div class="board-list-head">
+              <div>
+                <p class="platform-tag">Marketplace</p>
+                <h3>Lazada Cancel Requests</h3>
+              </div>
+              <span class="count-pill" id="count-Requests-Lazada">0 requests</span>
+            </div>
+            <ul class="order-list" id="Requests-Lazada" aria-live="polite"></ul>
+          </article>
+        </div>
+
+        <div class="marketplace-column tiktok" data-platform-board="TikTok">
+          <article class="board-card board-list-card">
+            <div class="board-list-head">
+              <div>
+                <p class="platform-tag">Marketplace</p>
+                <h3>TikTok Cancel Requests</h3>
+              </div>
+              <span class="count-pill" id="count-Requests-TikTok">0 requests</span>
+            </div>
+            <ul class="order-list" id="Requests-TikTok" aria-live="polite"></ul>
+          </article>
+        </div>
       </section>
     </section>
 

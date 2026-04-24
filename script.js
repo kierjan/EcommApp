@@ -4,7 +4,7 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
@@ -31,6 +31,7 @@ function cacheElements(){
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
     orders:document.querySelector('[data-view-count="orders"]'),
+    requests:document.querySelector('[data-view-count="requests"]'),
     cancelled:document.querySelector('[data-view-count="cancelled"]'),
     returned:document.querySelector('[data-view-count="returned"]')
   };
@@ -281,11 +282,20 @@ function normalizeOrderStatus(value){
   return orderStatuses.includes(value)?value:"active";
 }
 
+function normalizeCancelRequest(rawRequest){
+  const message=typeof rawRequest?.message==="string"?rawRequest.message.trim():"";
+  if(!message){return null;}
+  return{
+    message,
+    createdAt:typeof rawRequest?.createdAt==="string"?rawRequest.createdAt:""
+  };
+}
+
 function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():""};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
 }
 
 function buildLegacyItems(rawOrder){
@@ -391,10 +401,11 @@ async function renderApp(){
   renderSkuDatalist(catalog);
   syncDraftItemsWithCatalog(catalogMap);
   if(!dateKey){
-    updateViewTabBadges({totalOrders:0,cancelled:0,returned:0});
+    updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
       renderPlatform(platform,[],catalog);
+      renderRequestPlatformList(platform,[]);
       renderStatusPlatformList("cancelled",platform,[],catalog);
       renderStatusPlatformList("returned",platform,[],catalog);
     });
@@ -419,6 +430,7 @@ function renderDayViews(day,catalog){
     const platformOrders=day.platforms[platform]||[];
     renderDraftSection(platform,catalog);
     renderPlatform(platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"active")),catalog);
+    renderRequestPlatformList(platform,filterOrdersByOrderId(getOrdersWithCancelRequest(platformOrders)));
     renderStatusPlatformList("cancelled",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"cancelled")),catalog);
     renderStatusPlatformList("returned",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"returned")),catalog);
   });
@@ -506,6 +518,22 @@ function renderStatusPlatformList(status,platform,orders,catalog){
   updateArchiveCount(status,platform,orders.length);
 }
 
+function renderRequestPlatformList(platform,orders){
+  const list=document.getElementById(getRequestListId(platform));
+  if(!list){return;}
+  list.innerHTML="";
+  if(!orders.length){
+    const emptyItem=document.createElement("li");
+    emptyItem.className="empty-state";
+    emptyItem.textContent=`No ${platform} cancel requests for this date yet.`;
+    list.appendChild(emptyItem);
+    updateRequestCount(platform,0);
+    return;
+  }
+  orders.forEach((order)=>list.appendChild(createCancelRequestCard(platform,order)));
+  updateRequestCount(platform,orders.length);
+}
+
 function refreshDayViews(){
   const catalog=readCatalog();
   const store=normalizeStore(uiState.store||{});
@@ -577,6 +605,42 @@ function createDraftOrderCard(platform,draft){
   return item;
 }
 
+function hasPendingCancelRequest(order){
+  return Boolean(order?.cancelRequest?.message&&normalizeOrderStatus(order.status)==="active");
+}
+
+function getCancelRequestDraft(order){
+  return typeof uiState.cancelRequestDrafts[order.uid]==="string"?uiState.cancelRequestDrafts[order.uid]:"";
+}
+
+function createCancelRequestCard(platform,order){
+  const item=document.createElement("li");
+  item.className="order-item request-order-item";
+  item.dataset.uid=order.uid;
+  item.dataset.platform=platform;
+  const request=order.cancelRequest;
+  item.innerHTML=`
+    <div class="order-top">
+      <div class="order-id">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span>${escapeHtml(order.id)}</span>
+      </div>
+      <div class="order-top-actions">
+        <span class="request-pill">Cancel request</span>
+      </div>
+    </div>
+    <div class="request-card-copy">
+      <p class="request-card-reason">${escapeHtml(request?.message||"-")}</p>
+      <p class="request-card-meta">Courier: ${escapeHtml(order.courier)} | Total Sales: ${formatMoney(order.totalSales)}</p>
+    </div>
+    <div class="button-row compact-row">
+      <button type="button" class="secondary-btn compact-btn" data-action="reject-cancel-request">Reject</button>
+      <button type="button" class="primary-btn compact-btn" data-action="approve-cancel-request">Accept Cancel</button>
+    </div>
+  `;
+  return item;
+}
+
 function createOrderCard(platform,order,catalog){
   const item=document.createElement("li");
   item.className="order-item";
@@ -595,6 +659,26 @@ function createOrderCard(platform,order,catalog){
     const selected=orderState===status?" selected":"";
     return `<option value="${status}"${selected}>${getStatusLabel(status)}</option>`;
   }).join("");
+  const hasCancelRequest=hasPendingCancelRequest(order);
+  const cancelRequestBoxHtml=orderState!=="active"?"":hasCancelRequest?`
+    <div class="cancel-request-box is-pending">
+      <div class="cancel-request-head">
+        <span class="request-pill">Cancel request pending</span>
+      </div>
+      <p class="cancel-request-copy">${escapeHtml(order.cancelRequest?.message||"")}</p>
+    </div>
+  `:uiState.openCancelRequestOrderId===order.uid?`
+    <div class="cancel-request-box">
+      <div class="cancel-request-head">
+        <span class="section-label">Cancel Request</span>
+      </div>
+      <textarea class="reason-input" data-action="cancel-request-draft" rows="2" placeholder="Why does this order need to be cancelled?">${escapeHtml(getCancelRequestDraft(order))}</textarea>
+      <div class="reason-actions">
+        <button type="button" class="secondary-btn compact-btn" data-action="close-cancel-request">Close</button>
+        <button type="button" class="primary-btn compact-btn" data-action="save-cancel-request">Send Request</button>
+      </div>
+    </div>
+  `:"";
   const reasonFieldHtml=orderState==="active"?"":`
     <div class="field reason-field">
       <span>${getStatusLabel(orderState)} Reason</span>
@@ -612,10 +696,13 @@ function createOrderCard(platform,order,catalog){
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
+        ${orderState==="active"&&!hasCancelRequest?'<button type="button" class="secondary-btn compact-btn" data-action="toggle-cancel-request">Request Cancel</button>':""}
+        ${hasCancelRequest?'<span class="request-pill">Pending request</span>':""}
         <button type="button" class="remove-btn" data-action="remove-order">Remove</button>
       </div>
     </div>
     <div class="saved-line-items">${buildSavedLineItemsHtml(order.items,catalog)}</div>
+    ${cancelRequestBoxHtml}
     <div class="button-row compact-row">
       <button type="button" class="secondary-btn compact-btn" data-action="add-line">Add SKU Line</button>
     </div>
@@ -766,6 +853,10 @@ function getOrdersForStatus(orders,status){
   return (orders||[]).filter((order)=>normalizeOrderStatus(order.status)===status);
 }
 
+function getOrdersWithCancelRequest(orders){
+  return (orders||[]).filter((order)=>normalizeOrderStatus(order.status)==="active"&&hasPendingCancelRequest(order));
+}
+
 function filterOrdersByOrderId(orders){
   const query=sanitizeOrderId(uiState.orderSearch).toLowerCase();
   if(!query){return orders||[];}
@@ -780,6 +871,10 @@ function getStatusListId(status,platform){
   return `${status.charAt(0).toUpperCase()+status.slice(1)}-${platform}`;
 }
 
+function getRequestListId(platform){
+  return `Requests-${platform}`;
+}
+
 function updateCounts(platform,orders){
   const total=orders.length;
   const complete=orders.filter(isComplete).length;
@@ -792,24 +887,36 @@ function updateArchiveCount(status,platform,total){
   if(element){element.textContent=`${total} ${label}`;}
 }
 
+function updateRequestCount(platform,total){
+  const element=document.getElementById(`count-Requests-${platform}`);
+  if(element){element.textContent=`${total} request${total===1?"":"s"}`;}
+}
+
 function updateViewTabBadges(summary){
   const activeCount=Math.max(0,(summary?.totalOrders||0)-(summary?.cancelled||0)-(summary?.returned||0));
   const counts={
     orders:activeCount,
+    requests:summary?.pendingRequests||0,
     cancelled:summary?.cancelled||0,
     returned:summary?.returned||0
+  };
+  const labels={
+    orders:"active orders",
+    requests:"cancel requests",
+    cancelled:"cancelled orders",
+    returned:"returned orders"
   };
 
   Object.entries(elements.viewTabBadges||{}).forEach(([view,badge])=>{
     if(!badge){return;}
     const count=counts[view]||0;
     badge.textContent=String(count);
-    badge.setAttribute("aria-label",`${count} ${view} orders`);
+    badge.setAttribute("aria-label",`${count} ${labels[view]||view}`);
   });
 }
 
 function setActiveView(view){
-  const safeView=["orders","cancelled","returned"].includes(view)?view:"orders";
+  const safeView=["orders","requests","cancelled","returned"].includes(view)?view:"orders";
   uiState.activeView=safeView;
   elements.viewTabs.forEach((tab)=>{
     const isActive=tab.dataset.viewTab===safeView;
@@ -1032,6 +1139,52 @@ async function handleSavedOrderClick(event){
     return;
   }
   if(action==="remove-order"){void removeOrder(order.platform,order.record.uid);return;}
+  if(action==="toggle-cancel-request"){
+    uiState.openCancelRequestOrderId=uiState.openCancelRequestOrderId===order.record.uid?null:order.record.uid;
+    if(uiState.openCancelRequestOrderId===order.record.uid&&!Object.prototype.hasOwnProperty.call(uiState.cancelRequestDrafts,order.record.uid)){
+      uiState.cancelRequestDrafts[order.record.uid]="";
+    }
+    refreshDayViews();
+    return;
+  }
+  if(action==="close-cancel-request"){
+    uiState.openCancelRequestOrderId=null;
+    refreshDayViews();
+    return;
+  }
+  if(action==="save-cancel-request"){
+    const requestInput=event.target.closest(".cancel-request-box")?.querySelector('[data-action="cancel-request-draft"]');
+    const requestMessage=requestInput?.value.trim()||"";
+    if(!requestMessage){
+      showMessage("Add the cancel reason before sending the request.","error");
+      return;
+    }
+    order.record.cancelRequest={message:requestMessage,createdAt:new Date().toISOString()};
+    uiState.cancelRequestDrafts[order.record.uid]="";
+    uiState.openCancelRequestOrderId=null;
+    uiState.activeView="requests";
+    await persistSavedOrderChanges(order.store,order.platform);
+    showMessage("Cancel request sent.","success");
+    return;
+  }
+  if(action==="approve-cancel-request"){
+    const requestMessage=order.record.cancelRequest?.message||"";
+    order.record.status="cancelled";
+    order.record.reason=requestMessage;
+    order.record.cancelRequest=null;
+    uiState.activeView="cancelled";
+    await persistSavedOrderChanges(order.store,order.platform);
+    showMessage("Cancel request accepted. The order moved to Cancelled.","success");
+    return;
+  }
+  if(action==="reject-cancel-request"){
+    order.record.cancelRequest=null;
+    uiState.cancelRequestDrafts[order.record.uid]="";
+    uiState.openCancelRequestOrderId=null;
+    await persistSavedOrderChanges(order.store,order.platform);
+    showMessage("Cancel request rejected.","success");
+    return;
+  }
   if(action==="save-reason"){
     const reasonInput=event.target.closest(".reason-field")?.querySelector('[data-action="reason"]');
     order.record.reason=reasonInput?.value.trim()||"";
@@ -1066,9 +1219,17 @@ function handleSavedOrderChange(event){
   const order=findSavedOrder(event.target);
   if(!order){return;}
   if(action==="courier"){order.record.courier=courierOptions.includes(event.target.value)?event.target.value:courierOptions[0];}
+  if(action==="cancel-request-draft"){
+    uiState.cancelRequestDrafts[order.record.uid]=event.target.value;
+    return;
+  }
   if(action==="status"){
     order.record.status=normalizeOrderStatus(event.target.value);
-    if(order.record.status==="active"){order.record.reason="";}
+    if(order.record.status==="active"){
+      order.record.reason="";
+      order.record.cancelRequest=null;
+    }
+    else{order.record.cancelRequest=null;}
     if(order.record.status==="cancelled"){uiState.activeView="cancelled";}
     else if(order.record.status==="returned"){uiState.activeView="returned";}
     else{uiState.activeView="orders";}
@@ -1513,6 +1674,7 @@ function buildOrderCollectionSummary(orders){
     srpTotal:0,
     salesTotal:0,
     totalProfit:0,
+    pendingRequests:0,
     notPickedUp:0,
     pictureSent:0,
     pickedUp:0,
@@ -1525,6 +1687,7 @@ function buildOrderCollectionSummary(orders){
     summary.srpTotal+=getLineItemsTarget(order.items)||0;
     summary.salesTotal+=order.totalSales||0;
     summary.totalProfit+=getProfitDifference(order)||0;
+    if(hasPendingCancelRequest(order)){summary.pendingRequests+=1;}
     if(order.picture){summary.pictureSent+=1;}
     if(order.pickup){summary.pickedUp+=1;}
     else if(normalizeOrderStatus(order.status)==="active"){summary.notPickedUp+=1;}
