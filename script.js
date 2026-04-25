@@ -22,6 +22,8 @@ function cacheElements(){
   elements.skuOptions=document.getElementById("skuOptions");
   elements.preparedBy=document.getElementById("preparedBy");
   elements.checkedBy=document.getElementById("checkedBy");
+  elements.importShopeeBtn=document.getElementById("importShopeeBtn");
+  elements.shopeeImportInput=document.getElementById("shopeeImportInput");
   elements.markAllPicture=document.getElementById("markAllPicture");
   elements.markAllPickup=document.getElementById("markAllPickup");
   elements.topMessage=document.getElementById("topMessage");
@@ -100,6 +102,8 @@ function bindEvents(){
     });
   elements.preparedBy.addEventListener("input",saveApproval);
   elements.checkedBy.addEventListener("input",saveApproval);
+  elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
+  elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
   elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
   elements.markAllPickup.addEventListener("change",()=>{void applyBatchOrderCheck("pickup",elements.markAllPickup.checked);});
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
@@ -304,7 +308,7 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
 }
 
 function buildLegacyItems(rawOrder){
@@ -654,6 +658,16 @@ function createCancelRequestCard(platform,order){
   return item;
 }
 
+function buildOrderNoteHtml(order){
+  if(!order.note){return "";}
+  return `
+    <div class="order-note-box">
+      <p class="order-note-label">Note</p>
+      <p class="order-note-copy">${escapeHtml(order.note)}</p>
+    </div>
+  `;
+}
+
 function createOrderCard(platform,order,catalog){
   const item=document.createElement("li");
   item.className="order-item";
@@ -716,6 +730,7 @@ function createOrderCard(platform,order,catalog){
     </div>
     <div class="saved-line-items">${buildSavedLineItemsHtml(order.items,catalog)}</div>
     ${cancelRequestBoxHtml}
+    ${buildOrderNoteHtml(order)}
     <div class="button-row compact-row">
       <button type="button" class="secondary-btn compact-btn" data-action="add-line">Add SKU Line</button>
     </div>
@@ -1069,6 +1084,174 @@ async function saveApproval(){
   const day=ensureDay(store,dateKey);
   day.approval={preparedBy:elements.preparedBy.value.trim()||defaultApproval.preparedBy,checkedBy:elements.checkedBy.value.trim()||defaultApproval.checkedBy};
   await writeDay(dateKey,day,{suppressMessage:true});
+}
+
+async function handleShopeeImport(event){
+  const file=event.target?.files?.[0];
+  if(!file){return;}
+  const dateKey=getDateKey();
+  if(!dateKey){
+    showMessage("Select a date before importing Shopee orders.","error");
+    resetShopeeImportInput();
+    return;
+  }
+  if(typeof window.XLSX?.read!=="function"||typeof window.XLSX?.utils?.sheet_to_json!=="function"){
+    showMessage("Spreadsheet import is not available right now. Reload the page and try again.","error");
+    resetShopeeImportInput();
+    return;
+  }
+
+  showMessage("Importing Shopee to ship file...","success");
+
+  try{
+    const buffer=await file.arrayBuffer();
+    const workbook=window.XLSX.read(buffer,{type:"array",cellDates:true});
+    const rows=getShopeeImportRows(workbook);
+    const parsedImport=parseShopeeImportRows(rows,readCatalog());
+    if(!parsedImport.orders.length){
+      showMessage("No valid Shopee orders were found in that file.","error");
+      resetShopeeImportInput();
+      return;
+    }
+
+    const store=normalizeStore(uiState.store||await readStore());
+    const day=ensureDay(store,dateKey);
+    const result=upsertImportedShopeeOrders(day.platforms.Shopee||[],parsedImport.orders);
+    day.platforms.Shopee=result.orders;
+    uiState.activePlatform="Shopee";
+    uiState.activeView="orders";
+    await writeDay(dateKey,day);
+    refreshDayViews();
+
+    const reviewText=parsedImport.needsReview?` ${parsedImport.needsReview} item line${parsedImport.needsReview===1?"":"s"} need SRP review.`:"";
+    showMessage(`Shopee import complete. ${result.added} added, ${result.updated} updated.${reviewText}`,"success");
+  }catch(error){
+    console.error("Unable to import Shopee file:",error);
+    showMessage("Could not import that Shopee file. Check the file format and try again.","error");
+  }finally{
+    resetShopeeImportInput();
+  }
+}
+
+function resetShopeeImportInput(){
+  if(elements.shopeeImportInput){elements.shopeeImportInput.value="";}
+}
+
+function getShopeeImportRows(workbook){
+  const firstSheetName=workbook.SheetNames?.[0];
+  const sheet=firstSheetName?workbook.Sheets[firstSheetName]:null;
+  if(!sheet){return [];}
+  const rows=window.XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",raw:false});
+  return rows.length>1?rows.slice(1):[];
+}
+
+function parseShopeeImportRows(rows,catalog){
+  const groupedOrders=new Map();
+  let needsReview=0;
+
+  rows.forEach((row,rowIndex)=>{
+    const orderId=sanitizeOrderId(row[0]);
+    if(!orderId){return;}
+
+    const quantity=normalizeQuantity(row[17]);
+    if(quantity===null){return;}
+
+    const shippingOption=typeof row[5]==="string"?row[5].trim():String(row[5]||"").trim();
+    const skuReference=sanitizeSku(row[13]);
+    const variationName=typeof row[14]==="string"?row[14].trim():String(row[14]||"").trim();
+    if(!skuReference&&!variationName){return;}
+    const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
+    const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
+    const catalogEntry=findCatalogEntryBySearch(skuReference||variationName,catalog);
+    const lineItem={
+      uid:buildUid("line"),
+      sku:catalogEntry?.sku??skuReference,
+      item:catalogEntry?.item??(variationName||skuReference||"Unknown item"),
+      srp:catalogEntry?.srp??null,
+      qty:quantity
+    };
+    if(lineItem.srp===null){needsReview+=1;}
+
+    const createdSequence=parseShopeeImportSequence(row[9],rowIndex);
+    const existingGroup=groupedOrders.get(orderId);
+    if(existingGroup){
+      existingGroup.items.push(lineItem);
+      existingGroup.sequence=Math.min(existingGroup.sequence,createdSequence);
+      if(note&&!existingGroup.note){existingGroup.note=note;}
+      if(invoiceRequestType){existingGroup.invoiceRequested=true;}
+      if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
+      return;
+    }
+
+    groupedOrders.set(orderId,{
+      id:orderId,
+      items:[lineItem],
+      courier:normalizeImportedCourier(shippingOption),
+      invoiceRequested:Boolean(invoiceRequestType),
+      note,
+      sequence:createdSequence
+    });
+  });
+
+  const orders=Array.from(groupedOrders.values())
+    .sort((left,right)=>left.sequence-right.sequence)
+    .map((order)=>({
+      uid:buildUid("order"),
+      id:order.id,
+      items:mergeLineItems(order.items),
+      totalSales:null,
+      courier:order.courier,
+      picture:false,
+      pickup:false,
+      invoiceRequested:order.invoiceRequested,
+      status:"active",
+      reason:"",
+      note:order.note,
+      cancelRequest:null
+    }));
+
+  return{orders,needsReview};
+}
+
+function parseShopeeImportSequence(value,rowIndex){
+  if(value instanceof Date&&!Number.isNaN(value.getTime())){return value.getTime();}
+  if(typeof value==="number"&&Number.isFinite(value)){return value;}
+  const rawValue=typeof value==="string"?value.trim():"";
+  if(!rawValue){return rowIndex;}
+  const parsedDate=Date.parse(rawValue);
+  return Number.isNaN(parsedDate)?rowIndex:parsedDate;
+}
+
+function normalizeImportedCourier(value){
+  const cleaned=typeof value==="string"?value.replace(/^Standard Local\s*-\s*/i,"").trim():"";
+  if(!cleaned){return courierOptions[0];}
+  const normalized=cleaned.toLowerCase();
+  if(normalized.includes("j&t")||normalized.includes("j&t express")){return "J&T";}
+  if(normalized.includes("flash")){return "Flash";}
+  if(normalized.includes("spx")||normalized.includes("shopee xpress")){return "SPX";}
+  return courierOptions.find((option)=>option.toLowerCase()===normalized)||courierOptions[0];
+}
+
+function upsertImportedShopeeOrders(existingOrders,importedOrders){
+  const nextOrders=[...(existingOrders||[])];
+  let added=0;
+  let updated=0;
+
+  importedOrders.forEach((importedOrder)=>{
+    const existingOrder=nextOrders.find((order)=>order.id.toLowerCase()===importedOrder.id.toLowerCase());
+    if(existingOrder){
+      existingOrder.items=importedOrder.items;
+      existingOrder.courier=importedOrder.courier;
+      existingOrder.invoiceRequested=importedOrder.invoiceRequested;
+      existingOrder.note=importedOrder.note;
+      updated+=1;
+      return;
+    }
+    nextOrders.push(importedOrder);
+    added+=1;
+  });
+
+  return{orders:nextOrders,added,updated};
 }
 
 function handleDraftSectionClick(event){

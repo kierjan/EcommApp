@@ -130,6 +130,8 @@
               <h2>Shopee</h2>
             </div>
             <div class="board-head-actions">
+              <input type="file" id="shopeeImportInput" class="visually-hidden" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+              <button type="button" class="secondary-btn compact-btn board-head-btn" id="importShopeeBtn">Import To Ship</button>
               <button type="button" class="secondary-btn compact-btn board-head-btn" data-action="open-draft" data-platform="Shopee" id="openDraftBtn-Shopee">Add Order</button>
               <span class="count-pill" id="count-Shopee">0 / 0 complete</span>
             </div>
@@ -450,6 +452,7 @@
   <datalist id="skuOptions"></datalist>
 
   <script src="sku-catalog.js?v=20260418-1500"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="firebase-config.js?v=20260418-1500"></script>
   <script type="module" src="firebase-service.js?v=20260418-1500"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
