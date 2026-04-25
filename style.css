@@ -159,6 +159,23 @@ button {
   background: rgba(255, 255, 255, 0.72);
 }
 
+.batch-checks {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.batch-check-item {
+  min-height: 32px;
+  padding: 0 10px;
+  background: rgba(47, 143, 97, 0.08);
+}
+
+.batch-check-item input:disabled + span {
+  opacity: 0.55;
+}
+
 .sync-status-row {
   display: flex;
   align-items: center;
@@ -1298,6 +1315,10 @@ input[type="number"] {
   .draft-line-row,
   .board-grid {
     grid-template-columns: 1fr;
+  }
+
+  .batch-checks {
+    flex-direction: column;
   }
 
   .hero-text {

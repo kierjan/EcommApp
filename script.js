@@ -22,6 +22,8 @@ function cacheElements(){
   elements.skuOptions=document.getElementById("skuOptions");
   elements.preparedBy=document.getElementById("preparedBy");
   elements.checkedBy=document.getElementById("checkedBy");
+  elements.markAllPicture=document.getElementById("markAllPicture");
+  elements.markAllPickup=document.getElementById("markAllPickup");
   elements.topMessage=document.getElementById("topMessage");
   elements.syncBadge=document.getElementById("syncBadge");
   elements.syncStatusText=document.getElementById("syncStatusText");
@@ -98,6 +100,8 @@ function bindEvents(){
     });
   elements.preparedBy.addEventListener("input",saveApproval);
   elements.checkedBy.addEventListener("input",saveApproval);
+  elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
+  elements.markAllPickup.addEventListener("change",()=>{void applyBatchOrderCheck("pickup",elements.markAllPickup.checked);});
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
   elements.platformTabs.forEach((tab)=>tab.addEventListener("click",()=>setActivePlatform(tab.dataset.platformTab)));
     platforms.forEach((platform)=>{
@@ -408,6 +412,7 @@ async function renderApp(){
   if(!dateKey){
     updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
     updatePlatformTabCounts({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
+    updateBatchCheckStates({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
       renderPlatform(platform,[],catalog);
@@ -442,6 +447,7 @@ function renderDayViews(day,catalog){
   });
   updateViewTabBadges(buildDaySummary(day));
   updatePlatformTabCounts(day);
+  updateBatchCheckStates(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
 }
@@ -915,6 +921,40 @@ function updatePlatformTabCounts(day){
       countElement.setAttribute("aria-label",`${count} ${platform} orders`);
     }
   });
+}
+
+function updateBatchCheckStates(day){
+  const activeOrders=platforms.flatMap((platform)=>getOrdersForStatus(day?.platforms?.[platform]||[],"active"));
+  const hasOrders=activeOrders.length>0;
+  const allPictureSent=hasOrders&&activeOrders.every((order)=>order.picture);
+  const allPickedUp=hasOrders&&activeOrders.every((order)=>order.pickup);
+
+  if(elements.markAllPicture){
+    elements.markAllPicture.checked=allPictureSent;
+    elements.markAllPicture.disabled=!hasOrders;
+  }
+  if(elements.markAllPickup){
+    elements.markAllPickup.checked=allPickedUp;
+    elements.markAllPickup.disabled=!hasOrders;
+  }
+}
+
+async function applyBatchOrderCheck(field,checked){
+  const dateKey=getDateKey();
+  if(!dateKey){return;}
+  const store=normalizeStore(uiState.store||await readStore());
+  const day=ensureDay(store,dateKey);
+  const activeOrders=platforms.flatMap((platform)=>getOrdersForStatus(day.platforms[platform]||[],"active"));
+  if(!activeOrders.length){
+    showMessage("There are no active orders to update for this date.","error");
+    updateBatchCheckStates(day);
+    return;
+  }
+
+  activeOrders.forEach((order)=>{order[field]=checked;});
+  await writeDay(dateKey,day,{suppressMessage:true});
+  refreshDayViews();
+  showMessage(`${field==="picture"?"Picture sent":"Picked up"} updated for all active orders.`,"success");
 }
 
 function updateRequestCount(platform,total){
