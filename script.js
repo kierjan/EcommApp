@@ -308,7 +308,7 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
 }
 
 function buildLegacyItems(rawOrder){
@@ -739,6 +739,10 @@ function createOrderCard(platform,order,catalog){
         <span>SRP Total</span>
         <input type="text" value="${formatMoney(getLineItemsTarget(order.items))}" readonly>
       </label>
+      <label class="field readonly-field">
+        <span>Buyer Payment</span>
+        <input type="text" value="${order.buyerPayment===null?"":formatMoney(order.buyerPayment)}" readonly placeholder="-">
+      </label>
       <label class="field">
         <span>Total Sales</span>
         <input type="number" min="0" step="0.01" class="sales-input" data-action="totalSales" value="${order.totalSales===null?"":order.totalSales.toFixed(2)}" placeholder="0.00">
@@ -1044,7 +1048,7 @@ async function addOrder(platform){
   const day=ensureDay(store,dateKey);
   const alreadyExists=day.platforms[platform].some((order)=>order.id.toLowerCase()===orderId.toLowerCase());
   if(alreadyExists){showDraftMessage(platform,`${platform} order ${orderId} already exists for this date.`,"error");draftElements.orderId.focus();return;}
-  day.platforms[platform].push({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,courier:selectedCourier,picture:false,pickup:false,status:"active"});
+  day.platforms[platform].push({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,buyerPayment:null,courier:selectedCourier,picture:false,pickup:false,status:"active"});
   uiState.activePlatform=platform;
   uiState.activeView="orders";
   await writeDay(dateKey,day);
@@ -1160,6 +1164,7 @@ function parseShopeeImportRows(rows,catalog){
     const skuReference=sanitizeSku(row[13]);
     const variationName=typeof row[14]==="string"?row[14].trim():String(row[14]||"").trim();
     if(!skuReference&&!variationName){return;}
+    const buyerPayment=normalizeMoney(row[34]);
     const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
     const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
     const catalogEntry=findCatalogEntryBySearch(skuReference||variationName,catalog);
@@ -1179,6 +1184,7 @@ function parseShopeeImportRows(rows,catalog){
       existingGroup.sequence=Math.min(existingGroup.sequence,createdSequence);
       if(note&&!existingGroup.note){existingGroup.note=note;}
       if(invoiceRequestType){existingGroup.invoiceRequested=true;}
+      if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
       return;
     }
@@ -1187,6 +1193,7 @@ function parseShopeeImportRows(rows,catalog){
       id:orderId,
       items:[lineItem],
       courier:normalizeImportedCourier(shippingOption),
+      buyerPayment:buyerPayment,
       invoiceRequested:Boolean(invoiceRequestType),
       note,
       sequence:createdSequence
@@ -1200,6 +1207,7 @@ function parseShopeeImportRows(rows,catalog){
       id:order.id,
       items:mergeLineItems(order.items),
       totalSales:null,
+      buyerPayment:order.buyerPayment,
       courier:order.courier,
       picture:false,
       pickup:false,
@@ -1241,6 +1249,7 @@ function upsertImportedShopeeOrders(existingOrders,importedOrders){
     const existingOrder=nextOrders.find((order)=>order.id.toLowerCase()===importedOrder.id.toLowerCase());
     if(existingOrder){
       existingOrder.items=importedOrder.items;
+      existingOrder.buyerPayment=importedOrder.buyerPayment;
       existingOrder.courier=importedOrder.courier;
       existingOrder.invoiceRequested=importedOrder.invoiceRequested;
       existingOrder.note=importedOrder.note;
