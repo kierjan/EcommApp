@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function validPersonName(value) {
+      return value is string
+        && value.size() > 0
+        && value.size() <= 80;
+    }
+
+    function validDateId(dateId) {
+      return dateId is string
+        && dateId.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function validApproval(data) {
+      return data is map
+        && data.keys().hasOnly(['preparedBy', 'checkedBy'])
+        && validPersonName(data.preparedBy)
+        && validPersonName(data.checkedBy);
+    }
+
+    function validPlatforms(data) {
+      return data is map
+        && data.keys().hasOnly(['Shopee', 'Lazada', 'TikTok'])
+        && data.Shopee is list
+        && data.Lazada is list
+        && data.TikTok is list
+        && data.Shopee.size() <= 1000
+        && data.Lazada.size() <= 1000
+        && data.TikTok.size() <= 1000;
+    }
+
+    function validDailyOrdersDoc(dateId) {
+      return request.resource.data is map
+        && request.resource.data.keys().hasOnly(['approval', 'dateKey', 'platforms', 'updatedAt'])
+        && validDateId(dateId)
+        && request.resource.data.dateKey == dateId
+        && validApproval(request.resource.data.approval)
+        && validPlatforms(request.resource.data.platforms);
+    }
+
+    match /dailyOrders/{dateId} {
+      allow read: if true;
+      allow create, update: if validDailyOrdersDoc(dateId);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
