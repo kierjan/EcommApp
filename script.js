@@ -1,4 +1,5 @@
 const STORAGE_KEY="orders";
+const THEME_KEY="themePreference";
 const platforms=["Shopee","Lazada","TikTok"];
 const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
   bindEvents();
   elements.date.value=getTodayLocalISO();
   ensureDraftState();
+  applySavedTheme();
   await waitForFirebaseBridge();
   reportFirebaseStatus();
   await renderApp();
@@ -31,6 +33,7 @@ function cacheElements(){
   elements.syncStatusText=document.getElementById("syncStatusText");
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
   elements.printSummaryBtn=document.getElementById("printSummaryBtn");
+  elements.themeToggleBtn=document.getElementById("themeToggleBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
@@ -88,8 +91,29 @@ function reportFirebaseStatus(){
   }
 }
 
+
+function applySavedTheme(){
+  const savedTheme=localStorage.getItem(THEME_KEY);
+  const isDark=savedTheme==="dark";
+  document.body.classList.toggle("dark-mode",isDark);
+  updateThemeToggleLabel(isDark);
+}
+
+function toggleTheme(){
+  const isDark=!document.body.classList.contains("dark-mode");
+  document.body.classList.toggle("dark-mode",isDark);
+  localStorage.setItem(THEME_KEY,isDark?"dark":"light");
+  updateThemeToggleLabel(isDark);
+}
+
+function updateThemeToggleLabel(isDark){
+  if(!elements.themeToggleBtn){return;}
+  elements.themeToggleBtn.textContent=isDark?"☀️ Light Mode":"🌙 Dark Mode";
+  elements.themeToggleBtn.setAttribute("aria-pressed",String(isDark));
+}
 function bindEvents(){
   elements.printSummaryBtn.addEventListener("click",printSummary);
+  elements.themeToggleBtn?.addEventListener("click",toggleTheme);
   elements.downloadSummaryBtn.addEventListener("click",()=>{void downloadSummaryImage();});
   elements.date.addEventListener("change",async()=>{
       resetAllDrafts();
@@ -515,7 +539,7 @@ function renderPlatform(platform,orders,catalog){
     updateCounts(platform,orders);
     return;
   }
-  orders.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
+  orders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
   updateCounts(platform,orders);
 }
 
@@ -531,7 +555,7 @@ function renderStatusPlatformList(status,platform,orders,catalog){
     updateArchiveCount(status,platform,orders.length);
     return;
   }
-  orders.forEach((order)=>list.appendChild(createOrderCard(platform,order,catalog)));
+  orders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
   updateArchiveCount(status,platform,orders.length);
 }
 
@@ -547,7 +571,7 @@ function renderRequestPlatformList(platform,orders){
     updateRequestCount(platform,0);
     return;
   }
-  orders.forEach((order)=>list.appendChild(createCancelRequestCard(platform,order)));
+  orders.forEach((order,index)=>list.appendChild(createCancelRequestCard(platform,order,index)));
   updateRequestCount(platform,orders.length);
 }
 
@@ -630,7 +654,7 @@ function getCancelRequestDraft(order){
   return typeof uiState.cancelRequestDrafts[order.uid]==="string"?uiState.cancelRequestDrafts[order.uid]:"";
 }
 
-function createCancelRequestCard(platform,order){
+function createCancelRequestCard(platform,order,index=0){
   const item=document.createElement("li");
   item.className="order-item request-order-item";
   item.dataset.uid=order.uid;
@@ -640,7 +664,7 @@ function createCancelRequestCard(platform,order){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>${escapeHtml(order.id)}</span>
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="request-pill">Cancel request</span>
@@ -668,7 +692,7 @@ function buildOrderNoteHtml(order){
   `;
 }
 
-function createOrderCard(platform,order,catalog){
+function createOrderCard(platform,order,catalog,index=0){
   const item=document.createElement("li");
   item.className="order-item";
   item.dataset.uid=order.uid;
@@ -719,7 +743,7 @@ function createOrderCard(platform,order,catalog){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>${escapeHtml(order.id)}</span>
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
@@ -760,7 +784,6 @@ function createOrderCard(platform,order,catalog){
       <div class="order-checks">
         <label class="check-item"><input type="checkbox" data-action="picture" ${order.picture?"checked":""}><span>Picture sent</span></label>
         <label class="check-item"><input type="checkbox" data-action="pickup" ${order.pickup?"checked":""}><span>Picked up</span></label>
-        <label class="check-item"><input type="checkbox" data-action="invoiceRequested" ${order.invoiceRequested?"checked":""}><span>Invoice requested</span></label>
       </div>
     <div class="status-row">
       <p class="status-text">${getOrderLifecycleLabel(order)}</p>
@@ -1166,7 +1189,6 @@ function parseShopeeImportRows(rows,catalog){
     if(!skuReference&&!variationName){return;}
     const buyerPayment=normalizeMoney(row[34]);
     const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
-    const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
     const catalogEntry=findCatalogEntryBySearch(skuReference||variationName,catalog);
     const lineItem={
       uid:buildUid("line"),
@@ -1183,7 +1205,6 @@ function parseShopeeImportRows(rows,catalog){
       existingGroup.items.push(lineItem);
       existingGroup.sequence=Math.min(existingGroup.sequence,createdSequence);
       if(note&&!existingGroup.note){existingGroup.note=note;}
-      if(invoiceRequestType){existingGroup.invoiceRequested=true;}
       if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
       return;
@@ -1194,14 +1215,13 @@ function parseShopeeImportRows(rows,catalog){
       items:[lineItem],
       courier:normalizeImportedCourier(shippingOption),
       buyerPayment:buyerPayment,
-      invoiceRequested:Boolean(invoiceRequestType),
       note,
       sequence:createdSequence
     });
   });
 
   const orders=Array.from(groupedOrders.values())
-    .sort((left,right)=>left.sequence-right.sequence)
+    .sort((left,right)=>right.sequence-left.sequence)
     .map((order)=>({
       uid:buildUid("order"),
       id:order.id,
@@ -1211,7 +1231,6 @@ function parseShopeeImportRows(rows,catalog){
       courier:order.courier,
       picture:false,
       pickup:false,
-      invoiceRequested:order.invoiceRequested,
       status:"active",
       reason:"",
       note:order.note,
@@ -1251,7 +1270,6 @@ function upsertImportedShopeeOrders(existingOrders,importedOrders){
       existingOrder.items=importedOrder.items;
       existingOrder.buyerPayment=importedOrder.buyerPayment;
       existingOrder.courier=importedOrder.courier;
-      existingOrder.invoiceRequested=importedOrder.invoiceRequested;
       existingOrder.note=importedOrder.note;
       updated+=1;
       return;
@@ -1506,7 +1524,6 @@ function handleSavedOrderChange(event){
   }
   if(action==="picture"){order.record.picture=event.target.checked;}
   if(action==="pickup"){order.record.pickup=event.target.checked;}
-  if(action==="invoiceRequested"){order.record.invoiceRequested=event.target.checked;}
   if(action==="line-sku"||action==="line-qty"){
     const line=findSavedLineItem(order.record,event.target);
     if(!line){return;}
