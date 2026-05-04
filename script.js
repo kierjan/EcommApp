@@ -1,4 +1,5 @@
 const STORAGE_KEY="orders";
+const THEME_KEY="themePreference";
 const platforms=["Shopee","Lazada","TikTok"];
 const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded",async()=>{
   bindEvents();
   elements.date.value=getTodayLocalISO();
   ensureDraftState();
+  applySavedTheme();
   await waitForFirebaseBridge();
   reportFirebaseStatus();
   await renderApp();
@@ -31,6 +33,7 @@ function cacheElements(){
   elements.syncStatusText=document.getElementById("syncStatusText");
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
   elements.printSummaryBtn=document.getElementById("printSummaryBtn");
+  elements.themeToggleBtn=document.getElementById("themeToggleBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
@@ -88,8 +91,29 @@ function reportFirebaseStatus(){
   }
 }
 
+
+function applySavedTheme(){
+  const savedTheme=localStorage.getItem(THEME_KEY);
+  const isDark=savedTheme==="dark";
+  document.body.classList.toggle("dark-mode",isDark);
+  updateThemeToggleLabel(isDark);
+}
+
+function toggleTheme(){
+  const isDark=!document.body.classList.contains("dark-mode");
+  document.body.classList.toggle("dark-mode",isDark);
+  localStorage.setItem(THEME_KEY,isDark?"dark":"light");
+  updateThemeToggleLabel(isDark);
+}
+
+function updateThemeToggleLabel(isDark){
+  if(!elements.themeToggleBtn){return;}
+  elements.themeToggleBtn.textContent=isDark?"☀️ Light Mode":"🌙 Dark Mode";
+  elements.themeToggleBtn.setAttribute("aria-pressed",String(isDark));
+}
 function bindEvents(){
   elements.printSummaryBtn.addEventListener("click",printSummary);
+  elements.themeToggleBtn?.addEventListener("click",toggleTheme);
   elements.downloadSummaryBtn.addEventListener("click",()=>{void downloadSummaryImage();});
   elements.date.addEventListener("change",async()=>{
       resetAllDrafts();
@@ -631,7 +655,6 @@ function getCancelRequestDraft(order){
 }
 
 function createCancelRequestCard(platform,order,index=0){
-  const orderNumberLabel=`Order #${index+1}`;
   const item=document.createElement("li");
   item.className="order-item request-order-item";
   item.dataset.uid=order.uid;
@@ -641,7 +664,7 @@ function createCancelRequestCard(platform,order,index=0){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>${escapeHtml(order.id)}</span>
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="request-pill">${orderNumberLabel}</span>
@@ -722,7 +745,7 @@ function createOrderCard(platform,order,catalog,index=0){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>${escapeHtml(order.id)}</span>
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>

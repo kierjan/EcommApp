@@ -33,6 +33,17 @@
   border: 0;
 }
 
+body.dark-mode {
+  --bg-start: #0f1726;
+  --bg-end: #10151f;
+  --panel: rgba(21, 28, 41, 0.9);
+  --panel-border: rgba(255, 255, 255, 0.12);
+  --text: #e5edf8;
+  --muted: #9fb1ca;
+  --accent-soft: rgba(47, 143, 97, 0.28);
+  --warning-soft: rgba(163, 106, 17, 0.24);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -1498,4 +1509,9 @@ input[type="number"] {
     width: 100%;
     min-height: 44px;
   }
+}
+
+
+.theme-toggle-btn {
+  margin-bottom: 8px;
 }
