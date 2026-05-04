@@ -667,6 +667,7 @@ function createCancelRequestCard(platform,order,index=0){
         <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
+        <span class="request-pill">${orderNumberLabel}</span>
         <span class="request-pill">Cancel request</span>
       </div>
     </div>
@@ -711,6 +712,7 @@ function createOrderCard(platform,order,catalog,index=0){
     return `<option value="${status}"${selected}>${getStatusLabel(status)}</option>`;
   }).join("");
   const hasCancelRequest=hasPendingCancelRequest(order);
+  const orderNumberLabel=`Order #${index+1}`;
   const cancelRequestBoxHtml=orderState!=="active"?"":hasCancelRequest?`
     <div class="cancel-request-box is-pending">
       <div class="cancel-request-head">
@@ -747,6 +749,7 @@ function createOrderCard(platform,order,catalog,index=0){
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
+        <span class="request-pill">${orderNumberLabel}</span>
         ${orderState==="active"&&!hasCancelRequest?'<button type="button" class="secondary-btn compact-btn" data-action="toggle-cancel-request">Request Cancel</button>':""}
         ${hasCancelRequest?'<span class="request-pill">Pending request</span>':""}
         <button type="button" class="remove-btn" data-action="remove-order">Remove</button>
