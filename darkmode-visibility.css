@@ -1,0 +1,150 @@
+body.dark-mode {
+  --bg-start: #0f1726;
+  --bg-end: #10151f;
+  --panel: rgba(20, 28, 42, 0.94);
+  --panel-border: rgba(164, 185, 214, 0.2);
+  --text: #e5edf8;
+  --muted: #b2c2d8;
+  --accent: #4fca8b;
+  --accent-strong: #7ee0ae;
+  --danger: #ff8d8d;
+  --warning: #f0c66c;
+}
+
+body.dark-mode .logo {
+  filter: invert(1) brightness(1.35);
+}
+
+body.dark-mode .sync-status-panel,
+body.dark-mode .platform-switcher,
+body.dark-mode .order-builder,
+body.dark-mode .board-entry,
+body.dark-mode .line-item-row,
+body.dark-mode .sku-item,
+body.dark-mode .sku-empty,
+body.dark-mode .empty-state,
+body.dark-mode .order-item,
+body.dark-mode .line-item-empty {
+  border-color: rgba(164, 185, 214, 0.18);
+  background: rgba(12, 19, 31, 0.72);
+}
+
+body.dark-mode .field input,
+body.dark-mode .field select,
+body.dark-mode .reason-input {
+  color: var(--text);
+  border-color: rgba(164, 185, 214, 0.24);
+  background: rgba(6, 12, 22, 0.82);
+}
+
+body.dark-mode .field input::placeholder,
+body.dark-mode .reason-input::placeholder {
+  color: rgba(178, 194, 216, 0.72);
+}
+
+body.dark-mode .secondary-btn,
+body.dark-mode .view-tab,
+body.dark-mode .platform-tab,
+body.dark-mode .count-pill,
+body.dark-mode .sync-badge,
+body.dark-mode .item-count-indicator,
+body.dark-mode .view-btn,
+body.dark-mode .check-item,
+body.dark-mode .result-badge.pending {
+  color: var(--text);
+  background: rgba(164, 185, 214, 0.14);
+}
+
+body.dark-mode .primary-btn,
+body.dark-mode .platform-tab.is-active,
+body.dark-mode .view-tab.is-active {
+  color: #06111d;
+  background: linear-gradient(135deg, #7ee0ae, #4fca8b);
+}
+
+body.dark-mode .theme-toggle-btn {
+  width: auto;
+  color: #07111f;
+  background: linear-gradient(135deg, #f0c66c, #7ee0ae);
+  font-weight: 700;
+}
+
+body.dark-mode .board-head-btn,
+body.dark-mode .secondary-btn,
+body.dark-mode .view-btn,
+body.dark-mode .remove-btn,
+body.dark-mode .line-item-remove,
+body.dark-mode .sku-remove {
+  border: 1px solid rgba(164, 185, 214, 0.16);
+}
+
+body.dark-mode .field span,
+body.dark-mode .order-id,
+body.dark-mode .line-preview-name,
+body.dark-mode .draft-line-item,
+body.dark-mode .cancel-request-copy,
+body.dark-mode .request-card-reason,
+body.dark-mode .order-note-copy,
+body.dark-mode .sync-status-text,
+body.dark-mode .count-pill,
+body.dark-mode .platform-tab,
+body.dark-mode .view-tab {
+  color: var(--text);
+}
+
+body.dark-mode .eyebrow,
+body.dark-mode .section-label,
+body.dark-mode .platform-tag,
+body.dark-mode .hero-text,
+body.dark-mode .sync-status-meta,
+body.dark-mode .form-message,
+body.dark-mode .status-text,
+body.dark-mode .line-preview-qty,
+body.dark-mode .request-card-meta,
+body.dark-mode .order-note-label {
+  color: var(--muted);
+}
+
+body.dark-mode .order-item.is-complete {
+  border-color: rgba(79, 202, 139, 0.58);
+  background: linear-gradient(180deg, rgba(79, 202, 139, 0.18), rgba(12, 19, 31, 0.74));
+}
+
+body.dark-mode .order-item.is-cancelled,
+body.dark-mode .request-order-item {
+  border-color: rgba(255, 141, 141, 0.5);
+  background: linear-gradient(180deg, rgba(255, 141, 141, 0.16), rgba(12, 19, 31, 0.76));
+}
+
+body.dark-mode .order-item.is-returned {
+  border-color: rgba(240, 198, 108, 0.5);
+  background: linear-gradient(180deg, rgba(240, 198, 108, 0.16), rgba(12, 19, 31, 0.76));
+}
+
+body.dark-mode .request-pill,
+body.dark-mode .remove-btn,
+body.dark-mode .line-item-remove,
+body.dark-mode .sku-remove,
+body.dark-mode .result-badge.cancelled,
+body.dark-mode .result-badge.lose {
+  color: var(--danger);
+  background: rgba(255, 141, 141, 0.16);
+}
+
+body.dark-mode .draft-list-line,
+body.dark-mode .saved-line-preview-row,
+body.dark-mode .saved-line-items .line-item-row,
+body.dark-mode .order-note-box,
+body.dark-mode .draft-order-item {
+  border-color: rgba(164, 185, 214, 0.14);
+  background: rgba(164, 185, 214, 0.08);
+}
+
+body.dark-mode .tiktok .board-head h2,
+body.dark-mode .tiktok .board-list-head h3 {
+  color: #f3f7fb;
+}
+
+body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
