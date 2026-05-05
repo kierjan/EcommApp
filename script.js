@@ -509,22 +509,28 @@ function renderSalesCalendar(store=uiState.store||{}){
   const normalizedStore=normalizeStore(store);
   const monthlyDates=Object.keys(normalizedStore).filter((dateKey)=>getMonthKey(dateKey)===monthKey);
   const monthSummary=monthlyDates.reduce((summary,dateKey)=>{
-    const daySummary=buildCalendarDaySummary(normalizedStore[dateKey]);
-    summary.orders+=daySummary.totalOrders;
-    summary.srp+=daySummary.srpTotal;
-    summary.sales+=daySummary.salesTotal;
-    summary.profit+=daySummary.profitTotal;
-    summary.pendingLazada+=daySummary.pendingLazada;
+    platforms.forEach((platform)=>{
+      const platformSummary=buildCalendarPlatformSummary(normalizedStore[dateKey],platform);
+      summary[platform].orders+=platformSummary.totalOrders;
+      summary[platform].srp+=platformSummary.srpTotal;
+      summary[platform].sales+=platformSummary.salesTotal;
+      summary[platform].profit+=platformSummary.profitTotal;
+    });
     return summary;
-  },{orders:0,srp:0,sales:0,profit:0,pendingLazada:0});
+  },Object.fromEntries(platforms.map((platform)=>[platform,{orders:0,srp:0,sales:0,profit:0}])));
 
-  elements.calendarSummary.innerHTML=`
-    <div class="calendar-total"><span>Total Orders</span><strong>${monthSummary.orders}</strong></div>
-    <div class="calendar-total"><span>Total SRP</span><strong>${formatMoney(monthSummary.srp)}</strong></div>
-    <div class="calendar-total"><span>Total Sales</span><strong>${formatMoney(monthSummary.sales)}</strong></div>
-    <div class="calendar-total"><span>Total Profit Sales</span><strong>${formatSignedMoney(monthSummary.profit)}</strong></div>
-    <div class="calendar-total warning"><span>Lazada Audit Pending</span><strong>${monthSummary.pendingLazada}</strong></div>
-  `;
+  elements.calendarSummary.innerHTML=platforms.map((platform)=>{
+    const summary=monthSummary[platform];
+    return `
+      <div class="calendar-total marketplace-total ${platform.toLowerCase()}">
+        <strong>${escapeHtml(platform)}</strong>
+        <div class="calendar-total-row"><span>Total Orders</span><b>${summary.orders}</b></div>
+        <div class="calendar-total-row"><span>Total SRP</span><b>${formatMoney(summary.srp)}</b></div>
+        <div class="calendar-total-row"><span>Total Sales</span><b>${formatMoney(summary.sales)}</b></div>
+        <div class="calendar-total-row"><span>Total Profit Sales</span><b>${formatSignedMoney(summary.profit)}</b></div>
+      </div>
+    `;
+  }).join("");
 
   const weekdayLabels=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day)=>`<div class="calendar-weekday">${day}</div>`).join("");
   const firstDay=new Date(year,month-1,1).getDay();
@@ -574,17 +580,28 @@ function buildCalendarDaySummary(day){
   const sourcePlatforms=day?.platforms||{};
   const allOrders=platforms.flatMap((platform)=>(sourcePlatforms[platform]||[]).map((order)=>({platform,order})));
   const activeOrders=allOrders.filter(({order})=>normalizeOrderStatus(order.status)==="active");
-  return activeOrders.reduce((summary,{platform,order})=>{
+  return activeOrders.reduce((summary,{order})=>{
     summary.totalOrders+=1;
     summary.srpTotal+=getOrderSrpTotal(order)||0;
     if(order.totalSales!==null){
       summary.salesTotal+=Number(order.totalSales)||0;
       summary.profitTotal+=getProfitDifference(order)||0;
-    }else if(platform==="Lazada"){
-      summary.pendingLazada+=1;
     }
     return summary;
-  },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0,pendingLazada:0});
+  },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0});
+}
+
+function buildCalendarPlatformSummary(day,platform){
+  const activeOrders=(day?.platforms?.[platform]||[]).filter((order)=>normalizeOrderStatus(order.status)==="active");
+  return activeOrders.reduce((summary,order)=>{
+    summary.totalOrders+=1;
+    summary.srpTotal+=getOrderSrpTotal(order)||0;
+    if(order.totalSales!==null){
+      summary.salesTotal+=Number(order.totalSales)||0;
+      summary.profitTotal+=getProfitDifference(order)||0;
+    }
+    return summary;
+  },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0});
 }
 
 function buildLazadaAuditRemindersForDate(dateKey,store){

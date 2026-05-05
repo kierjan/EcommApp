@@ -352,7 +352,7 @@ button {
 
 .calendar-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -380,8 +380,39 @@ button {
   font-size: 18px;
 }
 
-.calendar-total.warning strong {
-  color: #b84a3d;
+.marketplace-total {
+  display: grid;
+  gap: 7px;
+}
+
+.marketplace-total strong {
+  margin-top: 0;
+}
+
+.calendar-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.calendar-total-row b {
+  color: var(--text);
+  font-size: 13px;
+  text-align: right;
+}
+
+.marketplace-total.shopee {
+  border-color: rgba(238, 77, 45, 0.26);
+}
+
+.marketplace-total.lazada {
+  border-color: rgba(38, 87, 191, 0.26);
+}
+
+.marketplace-total.tiktok {
+  border-color: rgba(20, 32, 51, 0.18);
 }
 
 .sales-calendar {
@@ -501,13 +532,10 @@ body.dark-mode .calendar-reminder span {
 }
 
 body.dark-mode .calendar-total strong,
+body.dark-mode .calendar-total-row b,
 body.dark-mode .calendar-day-number,
 body.dark-mode .calendar-metric strong {
   color: #f4f8ff;
-}
-
-body.dark-mode .calendar-total.warning strong {
-  color: #ffb5a9;
 }
 
 body.dark-mode .calendar-reminder {
