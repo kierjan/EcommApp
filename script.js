@@ -2093,10 +2093,16 @@ function getSummaryStyles(){
     h2{margin:0 0 8px;font-size:15px;}
     p{margin:0 0 4px;}
     .summary-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;}
-    .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px;}
+    .summary-overview{display:grid;gap:10px;margin-bottom:14px;}
+    .summary-group{display:grid;gap:8px;}
+    .summary-group-title{margin:0;font-size:11px;font-weight:700;color:#5e6b82;text-transform:uppercase;letter-spacing:.08em;}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+    .summary-grid.secondary{grid-template-columns:repeat(2,minmax(0,1fr));}
     .summary-card{padding:8px 10px;border:1px solid #d7deea;border-radius:8px;background:#f8fbff;}
+    .summary-card.secondary{background:#ffffff;border-color:#e1e6ef;}
     .summary-card-label{margin:0 0 4px;font-size:10px;color:#5e6b82;text-transform:uppercase;letter-spacing:.08em;}
     .summary-card-value{margin:0;font-size:16px;font-weight:700;}
+    .summary-card.secondary .summary-card-value{font-size:14px;}
     .courier-table{margin-bottom:16px;}
     .courier-table td:last-child,.courier-table th:last-child{text-align:right;}
     .table-total td{font-weight:700;background:#f8fbff;}
@@ -2204,34 +2210,44 @@ function buildDaySummary(day){
 
 function buildSummaryOverviewHtml(summary){
   return `
-    <section class="summary-grid">
-      <div class="summary-card">
-        <p class="summary-card-label">Total Orders</p>
-        <p class="summary-card-value">${summary.totalOrders}</p>
+    <section class="summary-overview">
+      <div class="summary-group">
+        <p class="summary-group-title">Today's Orders</p>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <p class="summary-card-label">Active Orders</p>
+            <p class="summary-card-value">${summary.totalOrders}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-card-label">SRP Total</p>
+            <p class="summary-card-value">${formatMoney(summary.srpTotal)}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-card-label">Total Sales</p>
+            <p class="summary-card-value">${formatMoney(summary.salesTotal)}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-card-label">Not Picked Up</p>
+            <p class="summary-card-value">${summary.notPickedUp}</p>
+          </div>
+          <div class="summary-card">
+            <p class="summary-card-label">Active Profit</p>
+            <p class="summary-card-value">${formatSignedMoney(summary.totalProfit)}</p>
+          </div>
+        </div>
       </div>
-      <div class="summary-card">
-        <p class="summary-card-label">SRP Total</p>
-        <p class="summary-card-value">${formatMoney(summary.srpTotal)}</p>
-      </div>
-      <div class="summary-card">
-        <p class="summary-card-label">Total Sales</p>
-        <p class="summary-card-value">${formatMoney(summary.salesTotal)}</p>
-      </div>
-      <div class="summary-card">
-        <p class="summary-card-label">Not Picked Up</p>
-        <p class="summary-card-value">${summary.notPickedUp}</p>
-      </div>
-      <div class="summary-card">
-        <p class="summary-card-label">Cancelled</p>
-        <p class="summary-card-value">${summary.cancelled}</p>
-      </div>
-      <div class="summary-card">
-        <p class="summary-card-label">Returned</p>
-        <p class="summary-card-value">${summary.returned}</p>
-      </div>
-      <div class="summary-card">
-        <p class="summary-card-label">Total Profit</p>
-        <p class="summary-card-value">${formatSignedMoney(summary.totalProfit)}</p>
+      <div class="summary-group">
+        <p class="summary-group-title">Cancelled / Returned Records</p>
+        <div class="summary-grid secondary">
+          <div class="summary-card secondary">
+            <p class="summary-card-label">Cancelled Orders</p>
+            <p class="summary-card-value">${summary.cancelled}</p>
+          </div>
+          <div class="summary-card secondary">
+            <p class="summary-card-label">Returned Orders</p>
+            <p class="summary-card-value">${summary.returned}</p>
+          </div>
+        </div>
       </div>
     </section>
   `;
