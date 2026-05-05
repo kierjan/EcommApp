@@ -136,8 +136,6 @@ function bindEvents(){
   elements.calendarPrevBtn?.addEventListener("click",()=>shiftCalendarMonth(-1));
   elements.calendarTodayBtn?.addEventListener("click",()=>setCalendarMonth(getMonthKey(getTodayLocalISO())));
   elements.calendarNextBtn?.addEventListener("click",()=>shiftCalendarMonth(1));
-  elements.salesCalendar?.addEventListener("click",(event)=>{void handleCalendarClick(event);});
-  elements.salesCalendar?.addEventListener("keydown",(event)=>{void handleCalendarKeydown(event);});
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
@@ -547,18 +545,9 @@ function renderSalesCalendar(store=uiState.store||{}){
 function buildCalendarCell(dateKey,store){
   const day=store[dateKey];
   const summary=buildCalendarDaySummary(day);
-  const reminders=buildLazadaAuditRemindersForDate(dateKey,store);
-  const hasData=summary.totalOrders>0||reminders.length>0;
-  const reminderHtml=reminders.map((reminder)=>`
-    <div class="calendar-reminder">
-      <strong>Audit Lazada</strong>
-      <span>${escapeHtml(formatShortDate(reminder.sourceDate))}: ${reminder.count} order${reminder.count===1?"":"s"}</span>
-      <button type="button" class="calendar-backtrack-btn" data-action="calendar-backtrack" data-source-date="${escapeHtml(reminder.sourceDate)}">Backtrack ${escapeHtml(formatShortDate(reminder.sourceDate))}</button>
-    </div>
-  `).join("");
-  const targetPlatform=getFirstActivePlatformForDay(day)||uiState.activePlatform||platforms[0];
+  const hasData=summary.totalOrders>0;
   return `
-    <div class="calendar-cell ${hasData?"has-data":""}" data-calendar-date="${escapeHtml(dateKey)}" data-calendar-platform="${escapeHtml(targetPlatform)}" role="button" tabindex="0" aria-label="Open orders for ${escapeHtml(formatShortDate(dateKey))}">
+    <div class="calendar-cell ${hasData?"has-data":""}">
       <div class="calendar-day-number">${Number(dateKey.slice(-2))}</div>
       ${summary.totalOrders?`
         <div class="calendar-metric"><span>Orders</span><strong>${summary.totalOrders}</strong></div>
@@ -566,14 +555,8 @@ function buildCalendarCell(dateKey,store){
         <div class="calendar-metric"><span>Sales</span><strong>${formatMoney(summary.salesTotal)}</strong></div>
         <div class="calendar-metric"><span>Profit</span><strong>${formatSignedMoney(summary.profitTotal)}</strong></div>
       `:""}
-      ${reminderHtml}
     </div>
   `;
-}
-
-function getFirstActivePlatformForDay(day){
-  const sourcePlatforms=day?.platforms||{};
-  return platforms.find((platform)=>(sourcePlatforms[platform]||[]).some((order)=>normalizeOrderStatus(order.status)==="active"))||"";
 }
 
 function buildCalendarDaySummary(day){
@@ -604,46 +587,6 @@ function buildCalendarPlatformSummary(day,platform){
   },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0});
 }
 
-function buildLazadaAuditRemindersForDate(dateKey,store){
-  return Object.entries(store||{}).reduce((reminders,[sourceDate,day])=>{
-    if(addDaysToDateKey(sourceDate,7)!==dateKey){return reminders;}
-    const pending=(day?.platforms?.Lazada||[]).filter((order)=>normalizeOrderStatus(order.status)==="active"&&order.totalSales===null).length;
-    if(pending){reminders.push({sourceDate,count:pending});}
-    return reminders;
-  },[]);
-}
-
-async function handleCalendarClick(event){
-  const backtrackButton=event.target.closest('[data-action="calendar-backtrack"]');
-  if(backtrackButton){
-    event.preventDefault();
-    event.stopPropagation();
-    await openOrdersForDate(backtrackButton.dataset.sourceDate,"Lazada");
-    return;
-  }
-  const cell=event.target.closest("[data-calendar-date]");
-  if(!cell||cell.classList.contains("is-empty")){return;}
-  await openOrdersForDate(cell.dataset.calendarDate,cell.dataset.calendarPlatform);
-}
-
-async function handleCalendarKeydown(event){
-  if(event.key!=="Enter"&&event.key!==" "){return;}
-  const cell=event.target.closest("[data-calendar-date]");
-  if(!cell||cell.classList.contains("is-empty")){return;}
-  event.preventDefault();
-  await openOrdersForDate(cell.dataset.calendarDate,cell.dataset.calendarPlatform);
-}
-
-async function openOrdersForDate(dateKey,platform){
-  if(!dateKey||!elements.date){return;}
-  elements.date.value=dateKey;
-  uiState.activeView="orders";
-  uiState.activePlatform=platforms.includes(platform)?platform:uiState.activePlatform||platforms[0];
-  resetAllDrafts();
-  clearMessage();
-  await renderApp();
-  showMessage(`Opened ${uiState.activePlatform} orders for ${formatShortDate(dateKey)}.`,"success");
-}
 
 function renderSkuDatalist(catalog){
   const options=[];

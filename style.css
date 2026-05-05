@@ -366,8 +366,7 @@ button {
 }
 
 .calendar-total span,
-.calendar-metric span,
-.calendar-reminder span {
+.calendar-metric span {
   display: block;
   color: var(--muted);
   font-size: 11px;
@@ -435,7 +434,6 @@ button {
   border: 1px solid rgba(20, 32, 51, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.62);
-  cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
@@ -450,7 +448,6 @@ button {
 .calendar-cell.is-empty {
   background: transparent;
   border-color: transparent;
-  cursor: default;
   box-shadow: none;
   transform: none;
 }
@@ -478,41 +475,6 @@ button {
   text-align: right;
 }
 
-.calendar-reminder {
-  margin-top: 6px;
-  padding: 6px;
-  border-radius: 8px;
-  background: rgba(196, 63, 63, 0.1);
-  color: #8f302b;
-  font-size: 11px;
-}
-
-.calendar-reminder strong {
-  display: block;
-}
-
-.calendar-backtrack-btn {
-  width: 100%;
-  margin-top: 6px;
-  padding: 6px 8px;
-  border: 1px solid rgba(184, 74, 61, 0.28);
-  border-radius: var(--radius-sm);
-  background: #ffffff;
-  color: #8f302b;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-
-.calendar-backtrack-btn:hover,
-.calendar-backtrack-btn:focus-visible {
-  background: #b84a3d;
-  border-color: #b84a3d;
-  color: #ffffff;
-  outline: none;
-}
-
 body.dark-mode .calendar-total,
 body.dark-mode .calendar-cell.has-data {
   background: rgba(30, 40, 58, 0.96);
@@ -526,8 +488,7 @@ body.dark-mode .calendar-cell {
 
 body.dark-mode .calendar-weekday,
 body.dark-mode .calendar-total span,
-body.dark-mode .calendar-metric span,
-body.dark-mode .calendar-reminder span {
+body.dark-mode .calendar-metric span {
   color: #c8d6ea;
 }
 
@@ -538,28 +499,10 @@ body.dark-mode .calendar-metric strong {
   color: #f4f8ff;
 }
 
-body.dark-mode .calendar-reminder {
-  background: rgba(196, 63, 63, 0.26);
-  color: #ffd1ca;
-}
-
 body.dark-mode .calendar-cell:hover,
 body.dark-mode .calendar-cell:focus-visible {
   border-color: rgba(142, 220, 169, 0.56);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
-}
-
-body.dark-mode .calendar-backtrack-btn {
-  background: rgba(22, 30, 45, 0.92);
-  border-color: rgba(255, 181, 169, 0.34);
-  color: #ffd1ca;
-}
-
-body.dark-mode .calendar-backtrack-btn:hover,
-body.dark-mode .calendar-backtrack-btn:focus-visible {
-  background: #ffb5a9;
-  border-color: #ffb5a9;
-  color: #2a1513;
 }
 
 .platform-switcher {
