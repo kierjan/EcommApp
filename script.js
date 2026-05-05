@@ -5,7 +5,7 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
@@ -737,12 +737,13 @@ function createOrderCard(platform,order,catalog,index=0){
       </div>
     </div>
   `:"";
+  const reasonSaved=uiState.recentlySavedReasonId===order.uid;
   const reasonFieldHtml=orderState==="active"?"":`
     <div class="field reason-field">
       <span>${getStatusLabel(orderState)} Reason</span>
       <textarea class="reason-input" data-action="reason" rows="2" placeholder="Enter the reason">${escapeHtml(order.reason||"")}</textarea>
       <div class="reason-actions">
-        <button type="button" class="primary-btn compact-btn reason-save-btn" data-action="save-reason">Save Reason</button>
+        <button type="button" class="primary-btn compact-btn reason-save-btn ${reasonSaved?"is-saved":""}" data-action="save-reason">${reasonSaved?"Saved":"Save Reason"}</button>
       </div>
     </div>
   `;
@@ -1660,7 +1661,13 @@ async function handleSavedOrderClick(event){
   if(action==="save-reason"){
     const reasonInput=event.target.closest(".reason-field")?.querySelector('[data-action="reason"]');
     order.record.reason=reasonInput?.value.trim()||"";
+    uiState.recentlySavedReasonId=order.record.uid;
     await persistSavedOrderChanges(order.store,order.platform);
+    window.setTimeout(()=>{
+      if(uiState.recentlySavedReasonId!==order.record.uid){return;}
+      uiState.recentlySavedReasonId=null;
+      refreshDayViews();
+    },2200);
     showMessage(`${getStatusLabel(order.record.status)} reason saved.`,"success");
     return;
   }

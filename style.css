@@ -1074,6 +1074,12 @@ input[type="number"] {
   min-width: 124px;
 }
 
+.reason-save-btn.is-saved {
+  background: #c43f3f;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(196, 63, 63, 0.22);
+}
+
 .saved-line-items {
   display: grid;
   gap: 4px;
