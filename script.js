@@ -548,8 +548,9 @@ function buildCalendarCell(dateKey,store){
   const day=store[dateKey];
   const summary=buildCalendarDaySummary(day);
   const hasData=summary.totalOrders>0;
+  const lazadaSalesState=getLazadaSalesCompletionState(day);
   return `
-    <div class="calendar-cell ${hasData?"has-data":""}" data-calendar-date="${escapeHtml(dateKey)}" role="button" tabindex="0" aria-label="Open Lazada orders for ${escapeHtml(formatShortDate(dateKey))}">
+    <div class="calendar-cell ${hasData?"has-data":""} ${lazadaSalesState.isComplete?"lazada-sales-complete":""} ${lazadaSalesState.isMissing?"lazada-sales-missing":""}" data-calendar-date="${escapeHtml(dateKey)}" role="button" tabindex="0" aria-label="Open Lazada orders for ${escapeHtml(formatShortDate(dateKey))}">
       <div class="calendar-day-number">${Number(dateKey.slice(-2))}</div>
       ${summary.totalOrders?`
         <div class="calendar-metric"><span>Orders</span><strong>${summary.totalOrders}</strong></div>
@@ -559,6 +560,13 @@ function buildCalendarCell(dateKey,store){
       `:""}
     </div>
   `;
+}
+
+function getLazadaSalesCompletionState(day){
+  const activeLazada=(day?.platforms?.Lazada||[]).filter((order)=>normalizeOrderStatus(order.status)==="active");
+  if(!activeLazada.length){return{isComplete:false,isMissing:false};}
+  const missingSales=activeLazada.some((order)=>order.totalSales===null);
+  return{isComplete:!missingSales,isMissing:missingSales};
 }
 
 function buildCalendarDaySummary(day){

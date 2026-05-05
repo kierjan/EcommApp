@@ -456,7 +456,17 @@ button {
 
 .calendar-cell.has-data {
   background: #ffffff;
-  border-color: rgba(47, 143, 97, 0.24);
+  border-color: rgba(20, 32, 51, 0.14);
+}
+
+.calendar-cell.lazada-sales-complete {
+  background: #effaf3;
+  border-color: rgba(47, 143, 97, 0.52);
+  box-shadow: inset 0 0 0 1px rgba(47, 143, 97, 0.12);
+}
+
+.calendar-cell.lazada-sales-complete .calendar-day-number {
+  color: #1f7a4d;
 }
 
 .calendar-day-number {
@@ -486,6 +496,16 @@ body.dark-mode .calendar-cell.has-data {
 body.dark-mode .calendar-cell {
   background: rgba(22, 30, 45, 0.72);
   border-color: rgba(159, 177, 202, 0.16);
+}
+
+body.dark-mode .calendar-cell.lazada-sales-complete {
+  background: rgba(35, 86, 58, 0.72);
+  border-color: rgba(142, 220, 169, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(142, 220, 169, 0.14);
+}
+
+body.dark-mode .calendar-cell.lazada-sales-complete .calendar-day-number {
+  color: #c9f4d9;
 }
 
 body.dark-mode .calendar-weekday,
