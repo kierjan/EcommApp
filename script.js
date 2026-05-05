@@ -2227,10 +2227,6 @@ function buildSummaryOverviewHtml(summary){
             <p class="summary-card-value">${formatMoney(summary.salesTotal)}</p>
           </div>
           <div class="summary-card">
-            <p class="summary-card-label">Not Picked Up</p>
-            <p class="summary-card-value">${summary.notPickedUp}</p>
-          </div>
-          <div class="summary-card">
             <p class="summary-card-label">Active Profit</p>
             <p class="summary-card-value">${formatSignedMoney(summary.totalProfit)}</p>
           </div>
