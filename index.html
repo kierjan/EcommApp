@@ -10,7 +10,7 @@
   <title>Solareco Daily Orders</title>
   <link rel="icon" type="image/png" href="SOLARECO%20BLACK.png?v=20260501">
   <link rel="apple-touch-icon" href="SOLARECO%20BLACK.png?v=20260501">
-  <link rel="stylesheet" href="style.css?v=20260505-reason-saved">
+  <link rel="stylesheet" href="style.css?v=20260505-sales-calendar">
   <link rel="stylesheet" href="darkmode-visibility.css?v=20260504-live">
 </head>
 <body>
@@ -106,6 +106,9 @@
       <button type="button" class="view-tab" data-view-tab="returned" aria-pressed="false">
         <span>Returned</span>
         <span class="view-tab-badge" data-view-count="returned">0</span>
+      </button>
+      <button type="button" class="view-tab" data-view-tab="calendar" aria-pressed="false">
+        <span>Sales Calendar</span>
       </button>
     </section>
 
@@ -443,6 +446,24 @@
         </div>
       </section>
     </section>
+
+    <section class="view-section" data-view-section="calendar" aria-label="Sales calendar page">
+      <section class="calendar-panel panel">
+        <div class="calendar-head">
+          <div>
+            <p class="section-label">Sales Calendar</p>
+            <h2 id="calendarTitle">Monthly saved totals</h2>
+          </div>
+          <div class="calendar-actions">
+            <button type="button" class="secondary-btn compact-btn" id="calendarPrevBtn">Previous</button>
+            <button type="button" class="secondary-btn compact-btn" id="calendarTodayBtn">Today</button>
+            <button type="button" class="secondary-btn compact-btn" id="calendarNextBtn">Next</button>
+          </div>
+        </div>
+        <div class="calendar-summary" id="calendarSummary" aria-live="polite"></div>
+        <div class="sales-calendar" id="salesCalendar" aria-live="polite"></div>
+      </section>
+    </section>
   </main>
 
   <datalist id="preparedByOptions">
@@ -462,7 +483,7 @@
   <script src="firebase-config.js?v=20260418-1500"></script>
   <script type="module" src="firebase-service.js?v=20260418-1500"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="script.js?v=20260505-summary-date-filename" defer></script>
+  <script src="script.js?v=20260505-sales-calendar" defer></script>
   <script src="summary-status-fix.js?v=20260505-summary-cleanup" defer></script>
   <script src="summary-preview.js?v=20260505-live" defer></script>
 </body>

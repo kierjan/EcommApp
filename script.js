@@ -5,7 +5,7 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",activeCalendarMonth:"",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
@@ -36,6 +36,12 @@ function cacheElements(){
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
   elements.themeToggleBtn=document.getElementById("themeToggleBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
+  elements.calendarTitle=document.getElementById("calendarTitle");
+  elements.calendarSummary=document.getElementById("calendarSummary");
+  elements.salesCalendar=document.getElementById("salesCalendar");
+  elements.calendarPrevBtn=document.getElementById("calendarPrevBtn");
+  elements.calendarTodayBtn=document.getElementById("calendarTodayBtn");
+  elements.calendarNextBtn=document.getElementById("calendarNextBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
     orders:document.querySelector('[data-view-count="orders"]'),
@@ -44,6 +50,7 @@ function cacheElements(){
     returned:document.querySelector('[data-view-count="returned"]')
   };
   elements.viewSections=Array.from(document.querySelectorAll("[data-view-section]"));
+  elements.platformSwitcher=document.querySelector(".platform-switcher");
   elements.platformTabs=Array.from(document.querySelectorAll("[data-platform-tab]"));
   elements.platformTabCounts={
     Shopee:document.querySelector('[data-platform-count="Shopee"]'),
@@ -126,6 +133,9 @@ function bindEvents(){
     });
   elements.preparedBy.addEventListener("input",saveApproval);
   elements.checkedBy.addEventListener("input",saveApproval);
+  elements.calendarPrevBtn?.addEventListener("click",()=>shiftCalendarMonth(-1));
+  elements.calendarTodayBtn?.addEventListener("click",()=>setCalendarMonth(getMonthKey(getTodayLocalISO())));
+  elements.calendarNextBtn?.addEventListener("click",()=>shiftCalendarMonth(1));
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
@@ -443,6 +453,7 @@ async function renderApp(){
     updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
     updatePlatformTabCounts({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
     updateBatchCheckStates({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
+    renderSalesCalendar(store);
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
       renderPlatform(platform,[],catalog);
@@ -459,6 +470,7 @@ async function renderApp(){
   elements.preparedBy.value=day.approval.preparedBy;
   elements.checkedBy.value=day.approval.checkedBy;
   renderDayViews(day,catalog);
+  renderSalesCalendar(store);
   syncStoreToLocalCache(store);
   writeCatalog(catalog);
 }
@@ -480,6 +492,95 @@ function renderDayViews(day,catalog){
   updateBatchCheckStates(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
+}
+
+function renderSalesCalendar(store=uiState.store||{}){
+  if(!elements.salesCalendar||!elements.calendarSummary){return;}
+  const monthKey=uiState.activeCalendarMonth||getMonthKey(getDateKey()||getTodayLocalISO());
+  uiState.activeCalendarMonth=monthKey;
+  const [year,month]=monthKey.split("-").map((part)=>Number(part));
+  const monthDate=new Date(year,month-1,1);
+  if(elements.calendarTitle){
+    elements.calendarTitle.textContent=monthDate.toLocaleDateString("en-US",{month:"long",year:"numeric"});
+  }
+
+  const normalizedStore=normalizeStore(store);
+  const monthlyDates=Object.keys(normalizedStore).filter((dateKey)=>getMonthKey(dateKey)===monthKey);
+  const monthSummary=monthlyDates.reduce((summary,dateKey)=>{
+    const daySummary=buildCalendarDaySummary(normalizedStore[dateKey]);
+    summary.orders+=daySummary.totalOrders;
+    summary.srp+=daySummary.srpTotal;
+    summary.profit+=daySummary.profitTotal;
+    summary.pendingLazada+=daySummary.pendingLazada;
+    return summary;
+  },{orders:0,srp:0,profit:0,pendingLazada:0});
+
+  elements.calendarSummary.innerHTML=`
+    <div class="calendar-total"><span>Total Orders</span><strong>${monthSummary.orders}</strong></div>
+    <div class="calendar-total"><span>Total SRP</span><strong>${formatMoney(monthSummary.srp)}</strong></div>
+    <div class="calendar-total"><span>Total Profit Sales</span><strong>${formatSignedMoney(monthSummary.profit)}</strong></div>
+    <div class="calendar-total warning"><span>Lazada Audit Pending</span><strong>${monthSummary.pendingLazada}</strong></div>
+  `;
+
+  const weekdayLabels=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day)=>`<div class="calendar-weekday">${day}</div>`).join("");
+  const firstDay=new Date(year,month-1,1).getDay();
+  const daysInMonth=new Date(year,month,0).getDate();
+  const cells=[];
+  for(let index=0;index<firstDay;index+=1){cells.push('<div class="calendar-cell is-empty"></div>');}
+  for(let day=1;day<=daysInMonth;day+=1){
+    const dateKey=buildDateKey(year,month,day);
+    cells.push(buildCalendarCell(dateKey,normalizedStore));
+  }
+  elements.salesCalendar.innerHTML=weekdayLabels+cells.join("");
+}
+
+function buildCalendarCell(dateKey,store){
+  const day=store[dateKey];
+  const summary=buildCalendarDaySummary(day);
+  const reminders=buildLazadaAuditRemindersForDate(dateKey,store);
+  const hasData=summary.totalOrders>0||reminders.length>0;
+  const reminderHtml=reminders.map((reminder)=>`
+    <div class="calendar-reminder">
+      <strong>Audit Lazada</strong>
+      <span>${escapeHtml(formatShortDate(reminder.sourceDate))}: ${reminder.count} order${reminder.count===1?"":"s"}</span>
+    </div>
+  `).join("");
+  return `
+    <div class="calendar-cell ${hasData?"has-data":""}">
+      <div class="calendar-day-number">${Number(dateKey.slice(-2))}</div>
+      ${summary.totalOrders?`
+        <div class="calendar-metric"><span>Orders</span><strong>${summary.totalOrders}</strong></div>
+        <div class="calendar-metric"><span>SRP</span><strong>${formatMoney(summary.srpTotal)}</strong></div>
+        <div class="calendar-metric"><span>Profit</span><strong>${formatSignedMoney(summary.profitTotal)}</strong></div>
+      `:""}
+      ${reminderHtml}
+    </div>
+  `;
+}
+
+function buildCalendarDaySummary(day){
+  const sourcePlatforms=day?.platforms||{};
+  const allOrders=platforms.flatMap((platform)=>(sourcePlatforms[platform]||[]).map((order)=>({platform,order})));
+  const activeOrders=allOrders.filter(({order})=>normalizeOrderStatus(order.status)==="active");
+  return activeOrders.reduce((summary,{platform,order})=>{
+    summary.totalOrders+=1;
+    summary.srpTotal+=getOrderSrpTotal(order)||0;
+    if(order.totalSales!==null){
+      summary.profitTotal+=getProfitDifference(order)||0;
+    }else if(platform==="Lazada"){
+      summary.pendingLazada+=1;
+    }
+    return summary;
+  },{totalOrders:0,srpTotal:0,profitTotal:0,pendingLazada:0});
+}
+
+function buildLazadaAuditRemindersForDate(dateKey,store){
+  return Object.entries(store||{}).reduce((reminders,[sourceDate,day])=>{
+    if(addDaysToDateKey(sourceDate,5)!==dateKey){return reminders;}
+    const pending=(day?.platforms?.Lazada||[]).filter((order)=>normalizeOrderStatus(order.status)==="active"&&order.totalSales===null).length;
+    if(pending){reminders.push({sourceDate,count:pending});}
+    return reminders;
+  },[]);
 }
 
 function renderSkuDatalist(catalog){
@@ -928,6 +1029,40 @@ function filterOrdersByOrderId(orders){
   return (orders||[]).filter((order)=>sanitizeOrderId(order.id).toLowerCase().includes(query));
 }
 
+function getMonthKey(dateKey){
+  return String(dateKey||getTodayLocalISO()).slice(0,7);
+}
+
+function buildDateKey(year,month,day){
+  return `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+}
+
+function addDaysToDateKey(dateKey,days){
+  const [year,month,day]=String(dateKey||"").split("-").map((part)=>Number(part));
+  if(!year||!month||!day){return "";}
+  const date=new Date(year,month-1,day);
+  date.setDate(date.getDate()+days);
+  return buildDateKey(date.getFullYear(),date.getMonth()+1,date.getDate());
+}
+
+function formatShortDate(dateKey){
+  const [year,month,day]=String(dateKey||"").split("-").map((part)=>Number(part));
+  if(!year||!month||!day){return dateKey||"";}
+  return new Date(year,month-1,day).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+}
+
+function setCalendarMonth(monthKey){
+  uiState.activeCalendarMonth=monthKey||getMonthKey(getTodayLocalISO());
+  renderSalesCalendar(uiState.store||{});
+}
+
+function shiftCalendarMonth(direction){
+  const monthKey=uiState.activeCalendarMonth||getMonthKey(getDateKey()||getTodayLocalISO());
+  const [year,month]=monthKey.split("-").map((part)=>Number(part));
+  const next=new Date(year,month-1+(Number(direction)||0),1);
+  setCalendarMonth(getMonthKey(buildDateKey(next.getFullYear(),next.getMonth()+1,1)));
+}
+
 function sortOrdersForDisplay(orders){
   return [...(orders||[])].sort((left,right)=>{
     const rightSequence=getOrderDisplaySequence(right);
@@ -1054,7 +1189,7 @@ function updateViewTabBadges(summary){
 }
 
 function setActiveView(view){
-  const safeView=["orders","requests","cancelled","returned"].includes(view)?view:"orders";
+  const safeView=["orders","requests","cancelled","returned","calendar"].includes(view)?view:"orders";
   uiState.activeView=safeView;
   elements.viewTabs.forEach((tab)=>{
     const isActive=tab.dataset.viewTab===safeView;
@@ -1062,9 +1197,11 @@ function setActiveView(view){
     tab.setAttribute("aria-pressed",String(isActive));
   });
   elements.viewSections.forEach((section)=>section.classList.toggle("is-active",section.dataset.viewSection===safeView));
+  if(elements.platformSwitcher){elements.platformSwitcher.classList.toggle("is-hidden",safeView==="calendar");}
   const dateKey=getDateKey();
   const day=dateKey?ensureDay(normalizeStore(uiState.store||{}),dateKey):{platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))};
   updatePlatformTabCounts(day);
+  if(safeView==="calendar"){renderSalesCalendar(uiState.store||{});}
 }
 
 function setActivePlatform(platform){
