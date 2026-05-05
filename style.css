@@ -376,7 +376,7 @@ button {
 .calendar-total strong {
   display: block;
   margin-top: 6px;
-  color: var(--ink);
+  color: var(--text);
   font-size: 18px;
 }
 
@@ -418,7 +418,7 @@ button {
 
 .calendar-day-number {
   margin-bottom: 6px;
-  color: var(--ink);
+  color: var(--text);
   font-weight: 800;
 }
 
@@ -430,7 +430,7 @@ button {
 }
 
 .calendar-metric strong {
-  color: var(--ink);
+  color: var(--text);
   text-align: right;
 }
 
@@ -445,6 +445,39 @@ button {
 
 .calendar-reminder strong {
   display: block;
+}
+
+body.dark-mode .calendar-total,
+body.dark-mode .calendar-cell.has-data {
+  background: rgba(30, 40, 58, 0.96);
+  border-color: rgba(159, 177, 202, 0.24);
+}
+
+body.dark-mode .calendar-cell {
+  background: rgba(22, 30, 45, 0.72);
+  border-color: rgba(159, 177, 202, 0.16);
+}
+
+body.dark-mode .calendar-weekday,
+body.dark-mode .calendar-total span,
+body.dark-mode .calendar-metric span,
+body.dark-mode .calendar-reminder span {
+  color: #c8d6ea;
+}
+
+body.dark-mode .calendar-total strong,
+body.dark-mode .calendar-day-number,
+body.dark-mode .calendar-metric strong {
+  color: #f4f8ff;
+}
+
+body.dark-mode .calendar-total.warning strong {
+  color: #ffb5a9;
+}
+
+body.dark-mode .calendar-reminder {
+  background: rgba(196, 63, 63, 0.26);
+  color: #ffd1ca;
 }
 
 .platform-switcher {
