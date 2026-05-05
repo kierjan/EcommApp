@@ -898,9 +898,9 @@ function buildLineItemRowHtml(item,catalog,mode){
           <span>Item</span>
           <input type="text" value="${escapeHtml(item.item||"")}" data-role="item-name" readonly>
         </label>
-      <label class="field readonly-field">
+      <label class="field">
         <span>Unit SRP</span>
-        <input type="text" value="${formatMoney(item.srp)}" data-role="unit-srp" readonly>
+        <input type="number" min="0" step="0.01" value="${item.srp===null?"":formatMoney(item.srp)}" data-action="${srpAction}" data-role="unit-srp" placeholder="0.00">
       </label>
       <label class="field">
         <span>Qty</span>
@@ -1790,7 +1790,7 @@ function syncOrdersWithCatalog(store,catalogMap){
             ...item,
             sku,
             item:sku?(catalogMap.get(sku)?.item??item.item??""):"",
-            srp:sku?(catalogMap.get(sku)?.srp??item.srp??null):item.srp,
+            srp:item.srp??(sku?(catalogMap.get(sku)?.srp??null):null),
             qty:normalizeQuantity(item.qty)??1
           };
         }));
