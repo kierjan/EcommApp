@@ -510,14 +510,16 @@ function renderSalesCalendar(store=uiState.store||{}){
     const daySummary=buildCalendarDaySummary(normalizedStore[dateKey]);
     summary.orders+=daySummary.totalOrders;
     summary.srp+=daySummary.srpTotal;
+    summary.sales+=daySummary.salesTotal;
     summary.profit+=daySummary.profitTotal;
     summary.pendingLazada+=daySummary.pendingLazada;
     return summary;
-  },{orders:0,srp:0,profit:0,pendingLazada:0});
+  },{orders:0,srp:0,sales:0,profit:0,pendingLazada:0});
 
   elements.calendarSummary.innerHTML=`
     <div class="calendar-total"><span>Total Orders</span><strong>${monthSummary.orders}</strong></div>
     <div class="calendar-total"><span>Total SRP</span><strong>${formatMoney(monthSummary.srp)}</strong></div>
+    <div class="calendar-total"><span>Total Sales</span><strong>${formatMoney(monthSummary.sales)}</strong></div>
     <div class="calendar-total"><span>Total Profit Sales</span><strong>${formatSignedMoney(monthSummary.profit)}</strong></div>
     <div class="calendar-total warning"><span>Lazada Audit Pending</span><strong>${monthSummary.pendingLazada}</strong></div>
   `;
@@ -551,6 +553,7 @@ function buildCalendarCell(dateKey,store){
       ${summary.totalOrders?`
         <div class="calendar-metric"><span>Orders</span><strong>${summary.totalOrders}</strong></div>
         <div class="calendar-metric"><span>SRP</span><strong>${formatMoney(summary.srpTotal)}</strong></div>
+        <div class="calendar-metric"><span>Sales</span><strong>${formatMoney(summary.salesTotal)}</strong></div>
         <div class="calendar-metric"><span>Profit</span><strong>${formatSignedMoney(summary.profitTotal)}</strong></div>
       `:""}
       ${reminderHtml}
@@ -566,12 +569,13 @@ function buildCalendarDaySummary(day){
     summary.totalOrders+=1;
     summary.srpTotal+=getOrderSrpTotal(order)||0;
     if(order.totalSales!==null){
+      summary.salesTotal+=Number(order.totalSales)||0;
       summary.profitTotal+=getProfitDifference(order)||0;
     }else if(platform==="Lazada"){
       summary.pendingLazada+=1;
     }
     return summary;
-  },{totalOrders:0,srpTotal:0,profitTotal:0,pendingLazada:0});
+  },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0,pendingLazada:0});
 }
 
 function buildLazadaAuditRemindersForDate(dateKey,store){
