@@ -2159,7 +2159,7 @@ function buildSummaryTable(platform,orders){
             <td>${totals.pickedUp}</td>
             <td>${totals.completed} complete / ${totals.cancelled} cancelled / ${totals.returned} returned</td>
             <td>-</td>
-            <td>${formatSignedMoney(totals.totalProfit)} profit / ${totals.notPickedUp} not picked up</td>
+            <td>${formatSignedMoney(totals.totalProfit)} profit</td>
           </tr>
         </tbody>
       </table>
