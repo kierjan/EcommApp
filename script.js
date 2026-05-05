@@ -1990,6 +1990,16 @@ function formatMoney(value){
   return Number(value).toFixed(2);
 }
 
+function formatSummaryImageFilenameDate(dateKey){
+  const [year,month,day]=String(dateKey||"").split("-").map((part)=>Number(part));
+  if(!year||!month||!day){return "Daily Orders";}
+  return new Date(year,month-1,day).toLocaleDateString("en-US",{
+    month:"long",
+    day:"numeric",
+    year:"numeric"
+  });
+}
+
 async function printSummary(){
   const summaryData=await getSummaryRenderData();
   if(!summaryData){return;}
@@ -2045,7 +2055,7 @@ async function downloadSummaryImage(){
     });
     const link=document.createElement("a");
     link.href=canvas.toDataURL("image/png");
-    link.download=`daily-orders-summary-${summaryData.dateKey}.png`;
+    link.download=`${formatSummaryImageFilenameDate(summaryData.dateKey)}.png`;
     link.click();
     showMessage("Summary image downloaded.","success");
   }catch(error){
