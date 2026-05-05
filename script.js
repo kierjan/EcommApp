@@ -136,6 +136,8 @@ function bindEvents(){
   elements.calendarPrevBtn?.addEventListener("click",()=>shiftCalendarMonth(-1));
   elements.calendarTodayBtn?.addEventListener("click",()=>setCalendarMonth(getMonthKey(getTodayLocalISO())));
   elements.calendarNextBtn?.addEventListener("click",()=>shiftCalendarMonth(1));
+  elements.salesCalendar?.addEventListener("click",(event)=>{void handleCalendarDayClick(event);});
+  elements.salesCalendar?.addEventListener("keydown",(event)=>{void handleCalendarDayKeydown(event);});
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
@@ -547,7 +549,7 @@ function buildCalendarCell(dateKey,store){
   const summary=buildCalendarDaySummary(day);
   const hasData=summary.totalOrders>0;
   return `
-    <div class="calendar-cell ${hasData?"has-data":""}">
+    <div class="calendar-cell ${hasData?"has-data":""}" data-calendar-date="${escapeHtml(dateKey)}" role="button" tabindex="0" aria-label="Open Lazada orders for ${escapeHtml(formatShortDate(dateKey))}">
       <div class="calendar-day-number">${Number(dateKey.slice(-2))}</div>
       ${summary.totalOrders?`
         <div class="calendar-metric"><span>Orders</span><strong>${summary.totalOrders}</strong></div>
@@ -585,6 +587,31 @@ function buildCalendarPlatformSummary(day,platform){
     }
     return summary;
   },{totalOrders:0,srpTotal:0,salesTotal:0,profitTotal:0});
+}
+
+async function handleCalendarDayClick(event){
+  const cell=event.target.closest("[data-calendar-date]");
+  if(!cell||cell.classList.contains("is-empty")){return;}
+  await openLazadaOrdersForDate(cell.dataset.calendarDate);
+}
+
+async function handleCalendarDayKeydown(event){
+  if(event.key!=="Enter"&&event.key!==" "){return;}
+  const cell=event.target.closest("[data-calendar-date]");
+  if(!cell||cell.classList.contains("is-empty")){return;}
+  event.preventDefault();
+  await openLazadaOrdersForDate(cell.dataset.calendarDate);
+}
+
+async function openLazadaOrdersForDate(dateKey){
+  if(!dateKey||!elements.date){return;}
+  elements.date.value=dateKey;
+  uiState.activeView="orders";
+  uiState.activePlatform="Lazada";
+  resetAllDrafts();
+  clearMessage();
+  await renderApp();
+  showMessage(`Opened Lazada orders for ${formatShortDate(dateKey)}.`,"success");
 }
 
 

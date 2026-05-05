@@ -434,6 +434,7 @@ button {
   border: 1px solid rgba(20, 32, 51, 0.08);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.62);
+  cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
@@ -448,6 +449,7 @@ button {
 .calendar-cell.is-empty {
   background: transparent;
   border-color: transparent;
+  cursor: default;
   box-shadow: none;
   transform: none;
 }
