@@ -34,7 +34,6 @@ function cacheElements(){
   elements.syncBadge=document.getElementById("syncBadge");
   elements.syncStatusText=document.getElementById("syncStatusText");
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
-  elements.printSummaryBtn=document.getElementById("printSummaryBtn");
   elements.themeToggleBtn=document.getElementById("themeToggleBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
@@ -114,7 +113,6 @@ function updateThemeToggleLabel(isDark){
   elements.themeToggleBtn.setAttribute("aria-pressed",String(isDark));
 }
 function bindEvents(){
-  elements.printSummaryBtn.addEventListener("click",printSummary);
   elements.themeToggleBtn?.addEventListener("click",toggleTheme);
   elements.downloadSummaryBtn.addEventListener("click",()=>{void downloadSummaryImage();});
   elements.date.addEventListener("change",async()=>{
