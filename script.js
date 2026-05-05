@@ -26,6 +26,8 @@ function cacheElements(){
   elements.checkedBy=document.getElementById("checkedBy");
   elements.importShopeeBtn=document.getElementById("importShopeeBtn");
   elements.shopeeImportInput=document.getElementById("shopeeImportInput");
+  elements.importLazadaBtn=document.getElementById("importLazadaBtn");
+  elements.lazadaImportInput=document.getElementById("lazadaImportInput");
   elements.markAllPicture=document.getElementById("markAllPicture");
   elements.markAllPickup=document.getElementById("markAllPickup");
   elements.topMessage=document.getElementById("topMessage");
@@ -128,6 +130,8 @@ function bindEvents(){
   elements.checkedBy.addEventListener("input",saveApproval);
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
+  elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
+  elements.lazadaImportInput?.addEventListener("change",(event)=>{void handleLazadaImport(event);});
   elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
   elements.markAllPickup.addEventListener("change",()=>{void applyBatchOrderCheck("pickup",elements.markAllPickup.checked);});
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
@@ -332,7 +336,7 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),srpTotal:normalizeMoney(rawOrder?.srpTotal),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",createdAt:normalizeImportedCreatedAt(rawOrder?.createdAt),createdSequence:normalizeImportedSequence(rawOrder?.createdSequence),cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
 }
 
 function buildLegacyItems(rawOrder){
@@ -528,35 +532,37 @@ function renderPlatform(platform,orders,catalog){
   const list=document.getElementById(platform);
   list.innerHTML="";
   const draft=getDraft(platform);
+  const displayOrders=sortOrdersForDisplay(orders);
   if(hasDraftContent(draft)){
     list.appendChild(createDraftOrderCard(platform,draft));
   }
-  if(!orders.length&&!hasDraftContent(draft)){
+  if(!displayOrders.length&&!hasDraftContent(draft)){
     const emptyItem=document.createElement("li");
     emptyItem.className="empty-state";
     emptyItem.textContent=`No ${platform} orders for this date yet.`;
     list.appendChild(emptyItem);
-    updateCounts(platform,orders);
+    updateCounts(platform,displayOrders);
     return;
   }
-  orders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
-  updateCounts(platform,orders);
+  displayOrders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
+  updateCounts(platform,displayOrders);
 }
 
 function renderStatusPlatformList(status,platform,orders,catalog){
   const list=document.getElementById(getStatusListId(status,platform));
   if(!list){return;}
   list.innerHTML="";
-  if(!orders.length){
+  const displayOrders=sortOrdersForDisplay(orders);
+  if(!displayOrders.length){
     const emptyItem=document.createElement("li");
     emptyItem.className="empty-state";
     emptyItem.textContent=`No ${platform} ${getStatusLabel(status).toLowerCase()} orders for this date yet.`;
     list.appendChild(emptyItem);
-    updateArchiveCount(status,platform,orders.length);
+    updateArchiveCount(status,platform,displayOrders.length);
     return;
   }
-  orders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
-  updateArchiveCount(status,platform,orders.length);
+  displayOrders.forEach((order,index)=>list.appendChild(createOrderCard(platform,order,catalog,index)));
+  updateArchiveCount(status,platform,displayOrders.length);
 }
 
 function renderRequestPlatformList(platform,orders){
@@ -703,6 +709,7 @@ function createOrderCard(platform,order,catalog,index=0){
   if(orderState==="cancelled"){item.classList.add("is-cancelled");}
   if(orderState==="returned"){item.classList.add("is-returned");}
   const salesOutcome=getSalesOutcome(order);
+  const createdMeta=order.createdAt?`<span class="item-count-indicator">${escapeHtml(formatOrderCreatedAt(order.createdAt))}</span>`:"";
   const courierOptionsHtml=courierOptions.map((option)=>{
     const selected=order.courier===option?" selected":"";
     return `<option value="${option}"${selected}>${option}</option>`;
@@ -750,6 +757,7 @@ function createOrderCard(platform,order,catalog,index=0){
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
         <span class="request-pill">${orderNumberLabel}</span>
+        ${createdMeta}
         ${orderState==="active"&&!hasCancelRequest?'<button type="button" class="secondary-btn compact-btn" data-action="toggle-cancel-request">Request Cancel</button>':""}
         ${hasCancelRequest?'<span class="request-pill">Pending request</span>':""}
         <button type="button" class="remove-btn" data-action="remove-order">Remove</button>
@@ -762,13 +770,13 @@ function createOrderCard(platform,order,catalog,index=0){
       <button type="button" class="secondary-btn compact-btn" data-action="add-line">Add SKU Line</button>
     </div>
     <div class="meta-row">
-      <label class="field readonly-field">
+      <label class="field">
         <span>SRP Total</span>
-        <input type="text" value="${formatMoney(getLineItemsTarget(order.items))}" readonly>
+        <input type="number" min="0" step="0.01" value="${formatOrderSrpTotalInput(order)}" data-action="srpTotal" placeholder="0.00">
       </label>
-      <label class="field readonly-field">
+      <label class="field">
         <span>Buyer Payment</span>
-        <input type="text" value="${order.buyerPayment===null?"":formatMoney(order.buyerPayment)}" readonly placeholder="-">
+        <input type="number" min="0" step="0.01" value="${order.buyerPayment===null?"":order.buyerPayment.toFixed(2)}" data-action="buyerPayment" placeholder="0.00">
       </label>
       <label class="field">
         <span>Total Sales</span>
@@ -919,6 +927,22 @@ function filterOrdersByOrderId(orders){
   const query=sanitizeOrderId(uiState.orderSearch).toLowerCase();
   if(!query){return orders||[];}
   return (orders||[]).filter((order)=>sanitizeOrderId(order.id).toLowerCase().includes(query));
+}
+
+function sortOrdersForDisplay(orders){
+  return [...(orders||[])].sort((left,right)=>{
+    const rightSequence=getOrderDisplaySequence(right);
+    const leftSequence=getOrderDisplaySequence(left);
+    if(rightSequence!==leftSequence){return rightSequence-leftSequence;}
+    return String(right.id||"").localeCompare(String(left.id||""));
+  });
+}
+
+function getOrderDisplaySequence(order){
+  if(Number.isFinite(order?.createdSequence)){return order.createdSequence;}
+  const parsed=Date.parse(order?.createdAt||"");
+  if(!Number.isNaN(parsed)){return parsed;}
+  return 0;
 }
 
 function getStatusLabel(status){
@@ -1074,7 +1098,7 @@ async function addOrder(platform){
   const day=ensureDay(store,dateKey);
   const alreadyExists=day.platforms[platform].some((order)=>order.id.toLowerCase()===orderId.toLowerCase());
   if(alreadyExists){showDraftMessage(platform,`${platform} order ${orderId} already exists for this date.`,"error");draftElements.orderId.focus();return;}
-  day.platforms[platform].push({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,buyerPayment:null,courier:selectedCourier,picture:false,pickup:false,status:"active"});
+  day.platforms[platform].push({uid:buildUid("order"),id:orderId,items:preparedItems.items,totalSales,srpTotal:null,buyerPayment:null,courier:selectedCourier,picture:false,pickup:false,status:"active",createdAt:"",createdSequence:null});
   uiState.activePlatform=platform;
   uiState.activeView="orders";
   await writeDay(dateKey,day);
@@ -1163,16 +1187,70 @@ async function handleShopeeImport(event){
   }
 }
 
+async function handleLazadaImport(event){
+  const file=event.target?.files?.[0];
+  if(!file){return;}
+  const dateKey=getDateKey();
+  if(!dateKey){
+    showMessage("Select a date before importing Lazada orders.","error");
+    resetLazadaImportInput();
+    return;
+  }
+  if(typeof window.XLSX?.read!=="function"||typeof window.XLSX?.utils?.sheet_to_json!=="function"){
+    showMessage("Spreadsheet import is not available right now. Reload the page and try again.","error");
+    resetLazadaImportInput();
+    return;
+  }
+
+  showMessage("Importing Lazada file...","success");
+
+  try{
+    const buffer=await file.arrayBuffer();
+    const workbook=window.XLSX.read(buffer,{type:"array",cellDates:true});
+    const rows=getSpreadsheetImportRows(workbook).slice(1);
+    const parsedImport=parseLazadaImportRows(rows,readCatalog());
+    if(!parsedImport.orders.length){
+      showMessage("No valid Lazada orders were found in that file.","error");
+      resetLazadaImportInput();
+      return;
+    }
+
+    const store=normalizeStore(uiState.store||await readStore());
+    const day=ensureDay(store,dateKey);
+    const result=upsertImportedOrders(day.platforms.Lazada||[],parsedImport.orders);
+    day.platforms.Lazada=result.orders;
+    uiState.activePlatform="Lazada";
+    uiState.activeView="orders";
+    await writeDay(dateKey,day);
+    refreshDayViews();
+
+    const reviewText=parsedImport.needsReview?` ${parsedImport.needsReview} item line${parsedImport.needsReview===1?"":"s"} need SRP review.`:"";
+    showMessage(`Lazada import complete. ${result.added} added, ${result.updated} updated.${reviewText}`,"success");
+  }catch(error){
+    console.error("Unable to import Lazada file:",error);
+    showMessage("Could not import that Lazada file. Check the file format and try again.","error");
+  }finally{
+    resetLazadaImportInput();
+  }
+}
+
 function resetShopeeImportInput(){
   if(elements.shopeeImportInput){elements.shopeeImportInput.value="";}
 }
 
+function resetLazadaImportInput(){
+  if(elements.lazadaImportInput){elements.lazadaImportInput.value="";}
+}
+
 function getShopeeImportRows(workbook){
+  return getSpreadsheetImportRows(workbook).slice(1);
+}
+
+function getSpreadsheetImportRows(workbook){
   const firstSheetName=workbook.SheetNames?.[0];
   const sheet=firstSheetName?workbook.Sheets[firstSheetName]:null;
   if(!sheet){return [];}
-  const rows=window.XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",raw:false});
-  return rows.length>1?rows.slice(1):[];
+  return window.XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",raw:false});
 }
 
 function parseShopeeImportRows(rows,catalog){
@@ -1192,6 +1270,7 @@ function parseShopeeImportRows(rows,catalog){
     if(!skuReference&&!variationName){return;}
     const buyerPayment=normalizeMoney(row[34]);
     const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
+    const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
     const catalogEntry=findCatalogEntryBySearch(skuReference||variationName,catalog);
     const lineItem={
       uid:buildUid("line"),
@@ -1203,11 +1282,14 @@ function parseShopeeImportRows(rows,catalog){
     if(lineItem.srp===null){needsReview+=1;}
 
     const createdSequence=parseShopeeImportSequence(row[9],rowIndex);
+    const createdAt=normalizeImportedCreatedAt(row[9]);
     const existingGroup=groupedOrders.get(orderId);
     if(existingGroup){
       existingGroup.items.push(lineItem);
-      existingGroup.sequence=Math.min(existingGroup.sequence,createdSequence);
+      existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
+      if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
       if(note&&!existingGroup.note){existingGroup.note=note;}
+      if(invoiceRequestType){existingGroup.invoiceRequested=true;}
       if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
       return;
@@ -1218,7 +1300,9 @@ function parseShopeeImportRows(rows,catalog){
       items:[lineItem],
       courier:normalizeImportedCourier(shippingOption),
       buyerPayment:buyerPayment,
+      invoiceRequested:Boolean(invoiceRequestType),
       note,
+      createdAt,
       sequence:createdSequence
     });
   });
@@ -1230,13 +1314,81 @@ function parseShopeeImportRows(rows,catalog){
       id:order.id,
       items:mergeLineItems(order.items),
       totalSales:null,
+      srpTotal:null,
       buyerPayment:order.buyerPayment,
       courier:order.courier,
       picture:false,
       pickup:false,
+      invoiceRequested:order.invoiceRequested,
       status:"active",
       reason:"",
       note:order.note,
+      createdAt:order.createdAt,
+      createdSequence:order.sequence,
+      cancelRequest:null
+    }));
+
+  return{orders,needsReview};
+}
+
+function parseLazadaImportRows(rows,catalog){
+  const groupedOrders=new Map();
+  let needsReview=0;
+
+  rows.forEach((row,rowIndex)=>{
+    const orderId=sanitizeOrderId(row[0]);
+    const skuReference=sanitizeSku(row[5]);
+    if(!orderId||!skuReference){return;}
+
+    const catalogEntry=findCatalogEntryBySearch(skuReference,catalog);
+    const lineItem={
+      uid:buildUid("line"),
+      sku:catalogEntry?.sku??skuReference,
+      item:catalogEntry?.item??skuReference,
+      srp:catalogEntry?.srp??null,
+      qty:1
+    };
+    if(lineItem.srp===null){needsReview+=1;}
+
+    const buyerPayment=normalizeMoney(row[46]);
+    const createdAt=normalizeImportedCreatedAt(row[8]);
+    const createdSequence=parseImportSequence(row[8],rowIndex);
+    const existingGroup=groupedOrders.get(orderId);
+    if(existingGroup){
+      existingGroup.items.push(lineItem);
+      existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
+      if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
+      if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
+      return;
+    }
+
+    groupedOrders.set(orderId,{
+      id:orderId,
+      items:[lineItem],
+      buyerPayment:buyerPayment,
+      createdAt,
+      sequence:createdSequence
+    });
+  });
+
+  const orders=Array.from(groupedOrders.values())
+    .sort((left,right)=>right.sequence-left.sequence)
+    .map((order)=>({
+      uid:buildUid("order"),
+      id:order.id,
+      items:mergeLineItems(order.items),
+      totalSales:null,
+      srpTotal:null,
+      buyerPayment:order.buyerPayment,
+      courier:courierOptions[0],
+      picture:false,
+      pickup:false,
+      invoiceRequested:false,
+      status:"active",
+      reason:"",
+      note:"",
+      createdAt:order.createdAt,
+      createdSequence:order.sequence,
       cancelRequest:null
     }));
 
@@ -1244,12 +1396,41 @@ function parseShopeeImportRows(rows,catalog){
 }
 
 function parseShopeeImportSequence(value,rowIndex){
+  return parseImportSequence(value,rowIndex);
+}
+
+function parseImportSequence(value,rowIndex){
   if(value instanceof Date&&!Number.isNaN(value.getTime())){return value.getTime();}
   if(typeof value==="number"&&Number.isFinite(value)){return value;}
   const rawValue=typeof value==="string"?value.trim():"";
   if(!rawValue){return rowIndex;}
   const parsedDate=Date.parse(rawValue);
   return Number.isNaN(parsedDate)?rowIndex:parsedDate;
+}
+
+function normalizeImportedSequence(value){
+  const sequence=normalizeMoney(value);
+  return sequence===null?null:sequence;
+}
+
+function normalizeImportedCreatedAt(value){
+  if(value instanceof Date&&!Number.isNaN(value.getTime())){return value.toISOString();}
+  if(typeof value==="number"&&Number.isFinite(value)){return "";}
+  const rawValue=typeof value==="string"?value.trim():"";
+  if(!rawValue){return "";}
+  const parsedDate=Date.parse(rawValue);
+  return Number.isNaN(parsedDate)?rawValue:new Date(parsedDate).toISOString();
+}
+
+function formatOrderCreatedAt(value){
+  const parsedDate=Date.parse(value);
+  if(Number.isNaN(parsedDate)){return value;}
+  return new Date(parsedDate).toLocaleString([],{
+    month:"short",
+    day:"2-digit",
+    hour:"2-digit",
+    minute:"2-digit"
+  });
 }
 
 function normalizeImportedCourier(value){
@@ -1263,6 +1444,10 @@ function normalizeImportedCourier(value){
 }
 
 function upsertImportedShopeeOrders(existingOrders,importedOrders){
+  return upsertImportedOrders(existingOrders,importedOrders);
+}
+
+function upsertImportedOrders(existingOrders,importedOrders){
   const nextOrders=[...(existingOrders||[])];
   let added=0;
   let updated=0;
@@ -1273,7 +1458,10 @@ function upsertImportedShopeeOrders(existingOrders,importedOrders){
       existingOrder.items=importedOrder.items;
       existingOrder.buyerPayment=importedOrder.buyerPayment;
       existingOrder.courier=importedOrder.courier;
+      existingOrder.invoiceRequested=importedOrder.invoiceRequested;
       existingOrder.note=importedOrder.note;
+      existingOrder.createdAt=importedOrder.createdAt;
+      existingOrder.createdSequence=importedOrder.createdSequence;
       updated+=1;
       return;
     }
@@ -1525,9 +1713,18 @@ function handleSavedOrderChange(event){
     order.record.totalSales=normalizeMoney(event.target.value);
     if(order.record.totalSales!==null){event.target.value=formatMoney(order.record.totalSales);}
   }
+  if(action==="srpTotal"){
+    order.record.srpTotal=normalizeMoney(event.target.value);
+    if(order.record.srpTotal!==null){event.target.value=formatMoney(order.record.srpTotal);}
+  }
+  if(action==="buyerPayment"){
+    order.record.buyerPayment=normalizeMoney(event.target.value);
+    if(order.record.buyerPayment!==null){event.target.value=formatMoney(order.record.buyerPayment);}
+  }
   if(action==="picture"){order.record.picture=event.target.checked;}
   if(action==="pickup"){order.record.pickup=event.target.checked;}
-  if(action==="line-sku"||action==="line-qty"){
+  if(action==="invoiceRequested"){order.record.invoiceRequested=event.target.checked;}
+  if(action==="line-sku"||action==="line-srp"||action==="line-qty"){
     const line=findSavedLineItem(order.record,event.target);
     if(!line){return;}
     if(action==="line-sku"){
@@ -1730,8 +1927,18 @@ function getLineItemsTarget(items){
   return meaningful.reduce((total,item)=>total+(getLineItemTotal(item)||0),0);
 }
 
+function getOrderSrpTotal(order){
+  const override=normalizeMoney(order?.srpTotal);
+  return override!==null?override:getLineItemsTarget(order?.items||[]);
+}
+
+function formatOrderSrpTotalInput(order){
+  const value=getOrderSrpTotal(order);
+  return value===null?"":value.toFixed(2);
+}
+
 function getProfitDifference(order){
-  const orderTarget=getLineItemsTarget(order.items);
+  const orderTarget=getOrderSrpTotal(order);
   if(orderTarget===null||order.totalSales===null){return null;}
   return Number((order.totalSales-orderTarget).toFixed(2));
 }
@@ -1749,7 +1956,8 @@ function getSalesOutcome(order){
 
 function normalizeMoney(value){
   if(value===""||value===null||value===undefined){return null;}
-  const amount=Number(value);
+  const cleaned=typeof value==="string"?value.replace(/[₱,\s]/g,""):value;
+  const amount=Number(cleaned);
   if(!Number.isFinite(amount)||amount<0){return null;}
   return Number(amount.toFixed(2));
 }
@@ -1906,7 +2114,7 @@ function buildSummaryTable(platform,orders){
     <tr>
       <td>${escapeHtml(order.id)}</td>
       <td>${escapeHtml(buildSummaryItemsLabel(order.items))}</td>
-      <td>${formatMoney(getLineItemsTarget(order.items))}</td>
+      <td>${formatMoney(getOrderSrpTotal(order))}</td>
       <td>${order.totalSales===null?"-":formatMoney(order.totalSales)}</td>
       <td>${escapeHtml(order.courier)}</td>
       <td>${order.picture?"Yes":"No"}</td>
@@ -1969,7 +2177,7 @@ function buildOrderCollectionSummary(orders){
     courierCounts:{}
   };
   orders.forEach((order)=>{
-    summary.srpTotal+=getLineItemsTarget(order.items)||0;
+    summary.srpTotal+=getOrderSrpTotal(order)||0;
     summary.salesTotal+=order.totalSales||0;
     summary.totalProfit+=getProfitDifference(order)||0;
     if(hasPendingCancelRequest(order)){summary.pendingRequests+=1;}
