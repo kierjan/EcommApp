@@ -10,11 +10,24 @@
   <title>Solareco Daily Orders</title>
   <link rel="icon" type="image/svg+xml" href="cart-icon.svg?v=20260506">
   <link rel="apple-touch-icon" href="cart-icon.svg?v=20260506">
-  <link rel="stylesheet" href="style.css?v=20260506-audit-sidebar-fix">
+  <link rel="stylesheet" href="style.css?v=20260506-audit-aligned-grid">
   <link rel="stylesheet" href="darkmode-visibility.css?v=20260504-live">
 </head>
 <body>
   <main class="app-shell">
+    <aside class="audit-panel panel" aria-labelledby="audit-title">
+      <div class="audit-head">
+        <div>
+          <p class="section-label">Audit Needed</p>
+          <h2 id="audit-title">Daily checks</h2>
+        </div>
+        <span class="audit-count-pill" id="auditCount">0</span>
+      </div>
+      <div class="audit-summary" id="auditSummary" aria-live="polite"></div>
+      <div class="audit-list" id="auditList" aria-live="polite"></div>
+    </aside>
+
+    <section class="app-content">
     <header class="hero panel">
       <div class="hero-copy">
         <button type="button" id="themeToggleBtn" class="secondary-btn compact-btn theme-toggle-btn" aria-pressed="false">Dark Mode</button>
@@ -26,18 +39,6 @@
       </div>
       <img src="SOLARECO BLACK.png" class="logo" alt="Solareco logo">
     </header>
-
-      <aside class="audit-panel panel" aria-labelledby="audit-title">
-        <div class="audit-head">
-          <div>
-            <p class="section-label">Audit Needed</p>
-            <h2 id="audit-title">Daily checks</h2>
-          </div>
-          <span class="audit-count-pill" id="auditCount">0</span>
-        </div>
-        <div class="audit-summary" id="auditSummary" aria-live="polite"></div>
-        <div class="audit-list" id="auditList" aria-live="polite"></div>
-      </aside>
     <div class="top-panels">
       <section class="panel controls-panel" aria-labelledby="controls-title">
         <div class="section-heading">
@@ -474,6 +475,7 @@
         <div class="calendar-summary" id="calendarSummary" aria-live="polite"></div>
         <div class="sales-calendar" id="salesCalendar" aria-live="polite"></div>
       </section>
+    </section>
     </section>
   </main>
 

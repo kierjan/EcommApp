@@ -66,8 +66,18 @@ button {
 }
 
 .app-shell {
-  width: calc(100% - 340px);
-  margin: 10px 16px 18px 324px;
+  display: grid;
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 16px;
+  width: min(100% - 24px, 1880px);
+  margin: 12px auto 24px;
+  align-items: start;
+}
+
+.app-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .panel,
@@ -91,18 +101,14 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
 }
 
 .audit-panel {
-  position: fixed;
-  left: 16px;
-  top: 202px;
-  width: 292px;
+  position: sticky;
+  top: 12px;
   max-height: calc(100vh - 20px);
   padding: 12px;
   overflow: auto;
-  z-index: 12;
 }
 
 .audit-head {
@@ -1647,15 +1653,14 @@ input[type="number"] {
 
 @media (max-width: 980px) {
   .app-shell {
+    grid-template-columns: 1fr;
     width: min(100% - 20px, 100%);
     margin: 10px auto 18px;
   }
 
   .audit-panel {
     position: static;
-    width: auto;
     max-height: none;
-    margin-bottom: 10px;
   }
 
   .top-panels {
