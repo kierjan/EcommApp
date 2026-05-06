@@ -353,6 +353,23 @@ button {
   background: rgba(196, 71, 71, 0.06);
 }
 
+.audit-item {
+  width: 100%;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.audit-item:hover,
+.audit-item:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(196, 71, 71, 0.44);
+  background: rgba(196, 71, 71, 0.1);
+  box-shadow: 0 10px 20px rgba(196, 71, 71, 0.12);
+}
+
 .audit-empty,
 .audit-more {
   display: flex;
@@ -405,6 +422,24 @@ button {
   color: var(--muted);
   font-size: 0.76rem;
   line-height: 1.4;
+}
+
+.order-item.is-audit-target {
+  border-color: rgba(217, 69, 69, 0.7);
+  box-shadow: 0 0 0 4px rgba(217, 69, 69, 0.15), 0 16px 32px rgba(20, 32, 51, 0.12);
+  animation: auditPulse 0.9s ease;
+}
+
+@keyframes auditPulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.01);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 body.dark-mode .audit-summary-card,

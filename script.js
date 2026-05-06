@@ -141,6 +141,7 @@ function bindEvents(){
   elements.calendarNextBtn?.addEventListener("click",()=>shiftCalendarMonth(1));
   elements.salesCalendar?.addEventListener("click",(event)=>{void handleCalendarDayClick(event);});
   elements.salesCalendar?.addEventListener("keydown",(event)=>{void handleCalendarDayKeydown(event);});
+  elements.auditList?.addEventListener("click",handleAuditClick);
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
@@ -528,14 +529,14 @@ function renderAuditPanel(day){
     return;
   }
   elements.auditList.innerHTML=issues.slice(0,5).map((issue)=>`
-    <article class="audit-item">
+    <button type="button" class="audit-item" data-action="locate-audit" data-platform="${escapeHtml(issue.platform)}" data-uid="${escapeHtml(issue.uid)}" data-type="${escapeHtml(issue.type)}" data-line-id="${escapeHtml(issue.lineId||"")}">
       <div class="audit-item-top">
         <span class="audit-type">${escapeHtml(issue.label)}</span>
         <span class="audit-platform">${escapeHtml(issue.platform)}</span>
       </div>
       <strong>${escapeHtml(issue.orderId)}</strong>
       <p>${escapeHtml(issue.detail)}</p>
-    </article>
+    </button>
   `).join("")+(issues.length>5?`<div class="audit-more">+${issues.length-5} more check${issues.length-5===1?"":"s"}</div>`:"");
 }
 
@@ -546,18 +547,69 @@ function buildAuditIssues(day){
     return activeOrders.flatMap((order)=>{
       const issues=[];
       if(order.totalSales===null){
-        issues.push({type:"sales",label:"Missing total sales",platform,orderId:order.id,detail:"Enter the final buyer payment or sales amount."});
+        issues.push({type:"sales",label:"Missing total sales",platform,uid:order.uid,orderId:order.id,detail:"Enter the final buyer payment or sales amount."});
       }
-      const hasMissingLineSrp=(order.items||[]).some((item)=>normalizeMoney(item?.srp)===null);
-      if(getOrderSrpTotal(order)===null||hasMissingLineSrp){
-        issues.push({type:"srp",label:"Missing SRP",platform,orderId:order.id,detail:"Add SRP so profit totals stay accurate."});
+      const missingSrpLine=(order.items||[]).find((item)=>normalizeMoney(item?.srp)===null);
+      if(getOrderSrpTotal(order)===null||missingSrpLine){
+        issues.push({type:"srp",label:"Missing SRP",platform,uid:order.uid,lineId:missingSrpLine?.uid||"",orderId:order.id,detail:"Add SRP so profit totals stay accurate."});
       }
       if(!String(order.courier||"").trim()){
-        issues.push({type:"courier",label:"Missing courier",platform,orderId:order.id,detail:"Choose the courier assigned to this order."});
+        issues.push({type:"courier",label:"Missing courier",platform,uid:order.uid,orderId:order.id,detail:"Choose the courier assigned to this order."});
       }
       return issues;
     });
   });
+}
+
+function handleAuditClick(event){
+  const item=event.target.closest('[data-action="locate-audit"]');
+  if(!item){return;}
+  locateAuditIssue({
+    platform:item.dataset.platform,
+    uid:item.dataset.uid,
+    type:item.dataset.type,
+    lineId:item.dataset.lineId
+  });
+}
+
+function locateAuditIssue(issue){
+  if(!platforms.includes(issue.platform)||!issue.uid){return;}
+  uiState.activeView="orders";
+  uiState.activePlatform=issue.platform;
+  uiState.orderSearch="";
+  if(elements.orderSearch){elements.orderSearch.value="";}
+  if(issue.lineId){uiState.expandedLineId=issue.lineId;}
+  refreshDayViews();
+  window.requestAnimationFrame(()=>scrollToAuditOrder(issue));
+}
+
+function scrollToAuditOrder(issue){
+  const targetOrder=elements.platformBoards
+    ?.find((board)=>board.dataset.platformBoard===issue.platform)
+    ?.querySelector(`[data-uid="${cssEscape(issue.uid)}"]`);
+  if(!targetOrder){return;}
+  targetOrder.classList.add("is-audit-target");
+  targetOrder.scrollIntoView({behavior:"smooth",block:"center"});
+  const focusTarget=findAuditFocusTarget(targetOrder,issue);
+  window.setTimeout(()=>{
+    focusTarget?.focus({preventScroll:true});
+    targetOrder.classList.remove("is-audit-target");
+  },900);
+}
+
+function findAuditFocusTarget(targetOrder,issue){
+  if(issue.type==="sales"){return targetOrder.querySelector('[data-action="totalSales"]');}
+  if(issue.type==="courier"){return targetOrder.querySelector('[data-action="courier"]');}
+  if(issue.type==="srp"&&issue.lineId){
+    return targetOrder.querySelector(`[data-line-id="${cssEscape(issue.lineId)}"] [data-role="unit-srp"]`);
+  }
+  if(issue.type==="srp"){return targetOrder.querySelector('[data-action="srpTotal"]');}
+  return targetOrder;
+}
+
+function cssEscape(value){
+  if(window.CSS?.escape){return CSS.escape(String(value||""));}
+  return String(value||"").replace(/["\\]/g,"\\$&");
 }
 
 function renderSalesCalendar(store=uiState.store||{}){
