@@ -66,8 +66,8 @@ button {
 }
 
 .app-shell {
-  width: min(100% - 20px, 1680px);
-  margin: 10px auto 18px;
+  width: calc(100% - 340px);
+  margin: 10px 16px 18px 324px;
 }
 
 .panel,
@@ -94,23 +94,15 @@ button {
   margin-bottom: 10px;
 }
 
-.workspace-layout {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.workspace-main {
-  min-width: 0;
-}
-
 .audit-panel {
-  position: sticky;
-  top: 10px;
+  position: fixed;
+  left: 16px;
+  top: 202px;
+  width: 292px;
   max-height: calc(100vh - 20px);
   padding: 12px;
   overflow: auto;
+  z-index: 12;
 }
 
 .audit-head {
@@ -1654,13 +1646,16 @@ input[type="number"] {
 }
 
 @media (max-width: 980px) {
-  .workspace-layout {
-    grid-template-columns: 1fr;
+  .app-shell {
+    width: min(100% - 20px, 100%);
+    margin: 10px auto 18px;
   }
 
   .audit-panel {
     position: static;
+    width: auto;
     max-height: none;
+    margin-bottom: 10px;
   }
 
   .top-panels {
