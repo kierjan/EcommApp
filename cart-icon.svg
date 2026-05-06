@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Shopping cart icon">
+  <rect width="512" height="512" fill="#ffffff"/>
+  <g fill="none" stroke="#231f20" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 170h38l42 142h162l44-103H190"/>
+    <path d="M190 209h224"/>
+    <path d="M206 258h187"/>
+    <path d="M251 209l12 103"/>
+    <path d="M330 209l-16 103"/>
+    <path d="M210 312h129"/>
+  </g>
+  <circle cx="216" cy="357" r="24" fill="#231f20"/>
+  <circle cx="340" cy="357" r="24" fill="#231f20"/>
+  <circle cx="216" cy="357" r="6" fill="#ffffff"/>
+  <circle cx="340" cy="357" r="6" fill="#ffffff"/>
+</svg>
