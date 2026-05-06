@@ -2464,6 +2464,8 @@ function getSummaryStyles(imageSize="whole"){
     table{margin-bottom:0;}
     .phone-marketplace{margin-bottom:26px;}
     .phone-marketplace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;padding:16px 18px;border-radius:16px;background:#142033;color:#ffffff;}
+    .phone-marketplace-head.shopee{background:#f36f21;}
+    .phone-marketplace-head.lazada{background:#1a73e8;}
     .phone-marketplace-head h2{margin:0;font-size:52px;color:#ffffff;}
     .phone-marketplace-head span{font-size:31px;font-weight:800;white-space:nowrap;}
     .phone-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
@@ -2582,7 +2584,7 @@ function buildPhoneSummarySection(platform,orders){
   `).join("");
   return `
     <section class="phone-marketplace">
-      <div class="phone-marketplace-head">
+      <div class="phone-marketplace-head ${platform.toLowerCase()}">
         <h2>${escapeHtml(platform)}</h2>
         <span>${orders.length} orders · ${totals.pickedUp} picked up</span>
       </div>
