@@ -66,8 +66,15 @@ button {
 }
 
 .app-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 12px;
   width: min(100% - 20px, 1680px);
   margin: 10px auto 18px;
+}
+
+.app-shell > :not(.hero):not(.audit-panel) {
+  grid-column: 2;
 }
 
 .panel,
@@ -87,6 +94,7 @@ button {
 }
 
 .hero {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -94,20 +102,12 @@ button {
   margin-bottom: 10px;
 }
 
-.workspace-layout {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-
-.workspace-main {
-  min-width: 0;
-}
-
 .audit-panel {
+  grid-column: 1;
+  grid-row: 2 / span 6;
   position: sticky;
   top: 10px;
+  align-self: start;
   max-height: calc(100vh - 20px);
   padding: 12px;
   overflow: auto;
@@ -1654,11 +1654,17 @@ input[type="number"] {
 }
 
 @media (max-width: 980px) {
-  .workspace-layout {
+  .app-shell {
     grid-template-columns: 1fr;
   }
 
+  .app-shell > :not(.hero):not(.audit-panel),
   .audit-panel {
+    grid-column: 1;
+  }
+
+  .audit-panel {
+    grid-row: auto;
     position: static;
     max-height: none;
   }
