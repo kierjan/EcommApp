@@ -1656,9 +1656,12 @@ function parseLazadaImportRows(rows,catalog){
 
   rows.forEach((row,rowIndex)=>{
     const orderId=sanitizeOrderId(row[0]);
+    const buyerName=getLazadaBuyerName(row);
+    if(orderId&&buyerName&&!groupedOrders.has(orderId)){
+      groupedOrders.set(orderId,{id:orderId,buyerName,items:[],buyerPayment:null,createdAt:"",sequence:rowIndex});
+    }
     const skuReference=sanitizeSku(row[5]);
     if(!orderId||!skuReference){return;}
-    const buyerName=normalizeBuyerName(row[16]);
 
     const catalogEntry=findCatalogEntryBySearch(skuReference,catalog);
     const lineItem={
@@ -1694,6 +1697,7 @@ function parseLazadaImportRows(rows,catalog){
   });
 
   const orders=Array.from(groupedOrders.values())
+    .filter((order)=>order.items.length)
     .sort((left,right)=>right.sequence-left.sequence)
     .map((order)=>({
       uid:buildUid("order"),
@@ -1716,6 +1720,10 @@ function parseLazadaImportRows(rows,catalog){
     }));
 
   return{orders,needsReview};
+}
+
+function getLazadaBuyerName(row){
+  return normalizeBuyerName(row?.[16])||normalizeBuyerName(row?.[17]);
 }
 
 function parseShopeeImportSequence(value,rowIndex){
