@@ -265,6 +265,31 @@ button {
   margin-top: 10px;
 }
 
+.summary-size-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(20, 32, 51, 0.06);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.summary-size-field span {
+  white-space: nowrap;
+}
+
+.summary-size-field select {
+  width: auto;
+  min-height: 28px;
+  padding: 4px 26px 4px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
 .top-panels .approval-panel .approval-grid,
 .top-panels .controls-panel .controls-grid {
   flex: 1 1 auto;

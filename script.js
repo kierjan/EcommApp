@@ -39,6 +39,7 @@ function cacheElements(){
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
   elements.themeToggleBtn=document.getElementById("themeToggleBtn");
   elements.downloadSummaryBtn=document.getElementById("downloadSummaryBtn");
+  elements.summaryImageSize=document.getElementById("summaryImageSize");
   elements.calendarTitle=document.getElementById("calendarTitle");
   elements.calendarSummary=document.getElementById("calendarSummary");
   elements.salesCalendar=document.getElementById("salesCalendar");
@@ -2362,25 +2363,27 @@ async function downloadSummaryImage(){
     showMessage("Image export is not available right now. Reload the page and try again.","error");
     return;
   }
+  const imageSize=elements.summaryImageSize?.value==="whole"?"whole":"phone";
+  const exportWidth=imageSize==="phone"?390:1400;
 
   const exportHost=document.createElement("div");
   exportHost.style.position="fixed";
   exportHost.style.left="-20000px";
   exportHost.style.top="0";
-  exportHost.style.width="1400px";
+  exportHost.style.width=`${exportWidth}px`;
   exportHost.style.padding="0";
   exportHost.style.margin="0";
   exportHost.style.background="#ffffff";
   exportHost.innerHTML=`
-    <style>${getSummaryStyles()}</style>
-    <div class="summary-export-root">
+    <style>${getSummaryStyles(imageSize)}</style>
+    <div class="summary-export-root ${imageSize==="phone"?"phone-summary":"whole-summary"}">
       ${buildSummaryMarkup(summaryData)}
     </div>
   `;
   document.body.appendChild(exportHost);
 
   try{
-    showMessage("Generating summary image...","success");
+    showMessage(`Generating ${imageSize==="phone"?"phone-size":"whole-size"} summary image...`,"success");
     const canvas=await window.html2canvas(exportHost.querySelector(".summary-export-root"),{
       backgroundColor:"#ffffff",
       scale:2,
@@ -2388,9 +2391,10 @@ async function downloadSummaryImage(){
     });
     const link=document.createElement("a");
     link.href=canvas.toDataURL("image/png");
-    link.download=`${formatSummaryImageFilenameDate(summaryData.dateKey)}.png`;
+    const sizeSuffix=imageSize==="phone"?" - Phone":"";
+    link.download=`${formatSummaryImageFilenameDate(summaryData.dateKey)}${sizeSuffix}.png`;
     link.click();
-    showMessage("Summary image downloaded.","success");
+    showMessage(`${imageSize==="phone"?"Phone-size":"Whole-size"} summary image downloaded.`,"success");
   }catch(error){
     console.error("Unable to export summary image:",error);
     showMessage("Could not generate the summary image.","error");
@@ -2433,7 +2437,37 @@ function buildSummaryMarkup(summaryData){
   `;
 }
 
-function getSummaryStyles(){
+function getSummaryStyles(imageSize="whole"){
+  const phoneStyles=imageSize==="phone"?`
+    .summary-export-root{width:390px;padding:14px;font-size:11px;}
+    h1{font-size:20px;}
+    h2{font-size:14px;}
+    .summary-header{gap:10px;margin-bottom:12px;}
+    .summary-header img{max-width:108px;max-height:42px;}
+    .summary-grid,.summary-grid.secondary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+    .summary-card{padding:7px;}
+    .summary-card-value{font-size:14px;}
+    table{display:block;border-collapse:separate;border-spacing:0;margin-bottom:14px;}
+    thead{display:none;}
+    tbody{display:grid;gap:8px;}
+    tr{display:block;border:1px solid #d7deea;border-radius:8px;background:#ffffff;overflow:hidden;}
+    td{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;border:0;border-bottom:1px solid #e7ebf2;padding:6px 7px;font-size:10px;word-break:break-word;}
+    td:last-child{border-bottom:0;}
+    td::before{color:#5e6b82;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.06em;}
+    td:nth-child(1)::before{content:"Order ID";}
+    td:nth-child(2)::before{content:"Items";}
+    td:nth-child(3)::before{content:"SRP";}
+    td:nth-child(4)::before{content:"Sales";}
+    td:nth-child(5)::before{content:"Courier";}
+    td:nth-child(6)::before{content:"Picture";}
+    td:nth-child(7)::before{content:"Pickup";}
+    td:nth-child(8)::before{content:"Status";}
+    td:nth-child(9)::before{content:"Reason";}
+    td:nth-child(10)::before{content:"Outcome";}
+    .table-total{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid #d7deea;border-radius:8px;background:#f8fbff;}
+    .table-total td{display:block;border:0;font-weight:700;background:transparent;}
+    .table-total td::before{display:none;}
+  `:"";
   return `
     body{font-family:"Segoe UI",Arial,sans-serif;padding:16px;color:#142033;font-size:12px;background:#ffffff;}
     .summary-export-root{background:#ffffff;padding:16px;color:#142033;font-size:12px;}
@@ -2458,6 +2492,7 @@ function getSummaryStyles(){
     table{width:100%;border-collapse:collapse;margin-bottom:16px;}
     th,td{border:1px solid #d7deea;padding:6px 7px;text-align:left;vertical-align:top;font-size:11px;}
     th{background:#f4f7fb;font-size:10px;}
+    ${phoneStyles}
   `;
 }
 
