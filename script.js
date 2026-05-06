@@ -2425,7 +2425,8 @@ async function getSummaryRenderData(){
 }
 
 function buildSummaryMarkup(summaryData,imageSize="whole"){
-  const sections=imageSize==="phone"?summaryData.phoneSummarySections:summaryData.summarySections;
+  const sections=imageSize==="phone"?(summaryData.phoneSummarySections||""):summaryData.summarySections;
+  const courierTotals=imageSize==="phone"?"":buildCourierTotalsTable(summaryData.daySummary.courierTotals);
   return `
     <div class="summary-header">
       <div>
@@ -2437,45 +2438,45 @@ function buildSummaryMarkup(summaryData,imageSize="whole"){
       <img src="SOLARECO BLACK.png" alt="Solareco logo">
     </div>
     ${buildSummaryOverviewHtml(summaryData.daySummary)}
-    ${buildCourierTotalsTable(summaryData.daySummary.courierTotals)}
+    ${courierTotals}
     ${sections}
   `;
 }
 
 function getSummaryStyles(imageSize="whole"){
   const phoneStyles=imageSize==="phone"?`
-    .summary-export-root{width:1080px;height:2400px;padding:42px 46px;font-size:29px;overflow:hidden;}
-    h1{font-size:58px;margin-bottom:14px;}
-    h2{font-size:38px;margin-bottom:18px;}
+    .summary-export-root{width:1080px;height:2400px;padding:46px 50px;font-size:34px;overflow:hidden;}
+    h1{font-size:68px;margin-bottom:16px;}
+    h2{font-size:48px;margin-bottom:18px;}
     p{margin-bottom:9px;}
-    .summary-header{gap:26px;margin-bottom:34px;}
-    .summary-header img{max-width:270px;max-height:98px;}
-    .summary-overview{gap:22px;margin-bottom:28px;}
-    .summary-group{gap:12px;}
-    .summary-group-title{font-size:23px;}
+    .summary-header{gap:28px;margin-bottom:38px;}
+    .summary-header img{max-width:300px;max-height:110px;}
+    .summary-overview{gap:24px;margin-bottom:34px;}
+    .summary-group{gap:14px;}
+    .summary-group-title{font-size:27px;}
     .summary-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
     .summary-grid.secondary{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
-    .summary-card{padding:18px 18px;border-radius:14px;}
-    .summary-card-label{font-size:19px;margin-bottom:8px;}
-    .summary-card-value{font-size:34px;}
-    .summary-card.secondary .summary-card-value{font-size:31px;}
+    .summary-card{padding:22px 20px;border-radius:16px;}
+    .summary-card-label{font-size:22px;margin-bottom:10px;}
+    .summary-card-value{font-size:42px;}
+    .summary-card.secondary .summary-card-value{font-size:38px;}
     .courier-table{margin-bottom:28px;}
     table{margin-bottom:0;}
     .phone-marketplace{margin-bottom:26px;}
     .phone-marketplace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;padding:16px 18px;border-radius:16px;background:#142033;color:#ffffff;}
-    .phone-marketplace-head h2{margin:0;font-size:42px;color:#ffffff;}
-    .phone-marketplace-head span{font-size:25px;font-weight:800;white-space:nowrap;}
+    .phone-marketplace-head h2{margin:0;font-size:52px;color:#ffffff;}
+    .phone-marketplace-head span{font-size:31px;font-weight:800;white-space:nowrap;}
     .phone-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
     .phone-order-card{border:1px solid #d7deea;border-radius:14px;background:#ffffff;padding:16px 18px;}
-    .phone-order-head{display:grid;gap:7px;margin-bottom:10px;font-weight:800;font-size:27px;}
+    .phone-order-head{display:grid;gap:8px;margin-bottom:12px;font-weight:800;font-size:32px;}
     .phone-order-id{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .phone-buyer{color:#2f8f61;font-size:23px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .phone-items{margin:0 0 12px;color:#5e6b82;font-size:23px;line-height:1.25;min-height:58px;}
+    .phone-buyer{color:#2f8f61;font-size:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .phone-items{margin:0 0 12px;color:#5e6b82;font-size:28px;line-height:1.25;min-height:70px;}
     .phone-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
     .phone-metric{border-radius:12px;background:#f8fbff;padding:10px;}
-    .phone-metric span{display:block;color:#5e6b82;font-size:17px;text-transform:uppercase;font-weight:700;}
-    .phone-metric strong{display:block;margin-top:5px;font-size:24px;}
-    .phone-more{margin-top:12px;color:#5e6b82;font-weight:700;font-size:23px;}
+    .phone-metric span{display:block;color:#5e6b82;font-size:21px;text-transform:uppercase;font-weight:700;}
+    .phone-metric strong{display:block;margin-top:5px;font-size:30px;}
+    .phone-more{margin-top:12px;color:#5e6b82;font-weight:700;font-size:28px;}
   `:"";
   return `
     body{font-family:"Segoe UI",Arial,sans-serif;padding:16px;color:#142033;font-size:12px;background:#ffffff;}
