@@ -42,9 +42,6 @@ function cacheElements(){
   elements.calendarPrevBtn=document.getElementById("calendarPrevBtn");
   elements.calendarTodayBtn=document.getElementById("calendarTodayBtn");
   elements.calendarNextBtn=document.getElementById("calendarNextBtn");
-  elements.auditCount=document.getElementById("auditCount");
-  elements.auditSummary=document.getElementById("auditSummary");
-  elements.auditList=document.getElementById("auditList");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
     orders:document.querySelector('[data-view-count="orders"]'),
@@ -458,7 +455,6 @@ async function renderApp(){
     updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
     updatePlatformTabCounts({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
     updateBatchCheckStates({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
-    renderAuditPanel(null);
     renderSalesCalendar(store);
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
@@ -494,67 +490,10 @@ function renderDayViews(day,catalog){
     renderStatusPlatformList("returned",platform,filterOrdersByOrderId(getOrdersForStatus(platformOrders,"returned")),catalog);
   });
   updateViewTabBadges(buildDaySummary(day));
-  renderAuditPanel(day);
   updatePlatformTabCounts(day);
   updateBatchCheckStates(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
-}
-
-function renderAuditPanel(day){
-  if(!elements.auditList||!elements.auditSummary||!elements.auditCount){return;}
-  const issues=buildAuditIssues(day);
-  elements.auditCount.textContent=String(issues.length);
-  elements.auditCount.classList.toggle("is-clear",issues.length===0);
-  const grouped={
-    sales:issues.filter((issue)=>issue.type==="sales").length,
-    srp:issues.filter((issue)=>issue.type==="srp").length,
-    courier:issues.filter((issue)=>issue.type==="courier").length
-  };
-  elements.auditSummary.innerHTML=`
-    <div class="audit-summary-card ${grouped.sales?"needs-work":"is-clear"}"><span>Total Sales</span><strong>${grouped.sales}</strong></div>
-    <div class="audit-summary-card ${grouped.srp?"needs-work":"is-clear"}"><span>SRP</span><strong>${grouped.srp}</strong></div>
-    <div class="audit-summary-card ${grouped.courier?"needs-work":"is-clear"}"><span>Courier</span><strong>${grouped.courier}</strong></div>
-  `;
-  if(!issues.length){
-    elements.auditList.innerHTML=`
-      <div class="audit-empty">
-        <strong>All clear</strong>
-        <span>No missing sales, SRP, or courier details for this date.</span>
-      </div>
-    `;
-    return;
-  }
-  elements.auditList.innerHTML=issues.map((issue)=>`
-    <article class="audit-item ${issue.type}">
-      <div class="audit-item-top">
-        <span class="audit-type">${escapeHtml(issue.label)}</span>
-        <span class="audit-platform">${escapeHtml(issue.platform)}</span>
-      </div>
-      <strong>${escapeHtml(issue.orderId)}</strong>
-      <span>${escapeHtml(issue.detail)}</span>
-    </article>
-  `).join("");
-}
-
-function buildAuditIssues(day){
-  if(!day?.platforms){return [];}
-  const issues=[];
-  platforms.forEach((platform)=>{
-    const activeOrders=getOrdersForStatus(day.platforms[platform]||[],"active");
-    activeOrders.forEach((order)=>{
-      if(order.totalSales===null){
-        issues.push({type:"sales",label:"Missing Total Sales",platform,orderId:order.id,detail:"Enter the final buyer payment/sales amount."});
-      }
-      if(getOrderSrpTotal(order)===null||(order.items||[]).some((item)=>item.srp===null)){
-        issues.push({type:"srp",label:"Missing SRP",platform,orderId:order.id,detail:"Review the SKU line and add the missing SRP."});
-      }
-      if(!courierOptions.includes(order.courier)){
-        issues.push({type:"courier",label:"Missing Courier",platform,orderId:order.id,detail:"Select the assigned courier for this order."});
-      }
-    });
-  });
-  return issues;
 }
 
 function renderSalesCalendar(store=uiState.store||{}){
