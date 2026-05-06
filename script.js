@@ -3,7 +3,6 @@ const THEME_KEY="themePreference";
 const platforms=["Shopee","Lazada","TikTok"];
 const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
-const SHOPEE_TO_SHIP_URL="https://seller.shopee.ph/portal/sale/order?type=toship&source=processed&sort_by=confirmed_date_desc";
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
 const uiState={activeView:"orders",activePlatform:"Shopee",activeCalendarMonth:"",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
@@ -806,13 +805,11 @@ function createCancelRequestCard(platform,order,index=0){
   item.dataset.uid=order.uid;
   item.dataset.platform=platform;
   const request=order.cancelRequest;
-  const orderNumberLabel=`Order #${index+1}`;
-  const orderIdHtml=buildOrderIdHtml(platform,order.id,index);
   item.innerHTML=`
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        ${orderIdHtml}
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="request-pill">${orderNumberLabel}</span>
@@ -882,7 +879,6 @@ function createOrderCard(platform,order,catalog,index=0){
     </div>
   `:"";
   const reasonSaved=uiState.recentlySavedReasonId===order.uid;
-  const orderIdHtml=buildOrderIdHtml(platform,order.id,index);
   const reasonFieldHtml=orderState==="active"?"":`
     <div class="field reason-field">
       <span>${getStatusLabel(orderState)} Reason</span>
@@ -896,7 +892,7 @@ function createOrderCard(platform,order,catalog,index=0){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        ${orderIdHtml}
+        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
@@ -1794,10 +1790,6 @@ async function handleSavedOrderClick(event){
   if(!action){return;}
   const order=findSavedOrder(event.target);
   if(!order){return;}
-  if(action==="open-shopee-order"){
-    await openShopeeOrderSearch(order.record.id);
-    return;
-  }
   if(action==="toggle-line-details"){
     const lineId=event.target.closest("[data-line-id]")?.dataset.lineId;
     if(!lineId){return;}
@@ -1883,24 +1875,6 @@ async function handleSavedOrderClick(event){
     order.record.items=order.record.items.filter((item)=>item.uid!==lineId);
     if(uiState.expandedLineId===lineId){uiState.expandedLineId=null;}
     void persistSavedOrderChanges(order.store,order.platform);
-  }
-}
-
-function buildOrderIdHtml(platform,orderId,index){
-  const label=`Order #${index+1} - ${escapeHtml(orderId)}`;
-  if(platform!=="Shopee"){return `<span>${label}</span>`;}
-  return `<button type="button" class="order-id-link" data-action="open-shopee-order" title="Open Shopee Seller Center and copy this Order ID">${label}</button>`;
-}
-
-async function openShopeeOrderSearch(orderId){
-  const cleanOrderId=sanitizeOrderId(orderId);
-  if(!cleanOrderId){return;}
-  window.open(SHOPEE_TO_SHIP_URL,"_blank","noopener,noreferrer");
-  try{
-    await navigator.clipboard?.writeText(cleanOrderId);
-    showMessage(`Shopee Order ID ${cleanOrderId} copied. Paste it in Shopee search/find.`,"success");
-  }catch(error){
-    showMessage(`Shopee page opened. Search for Order ID ${cleanOrderId}.`,"success");
   }
 }
 

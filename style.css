@@ -1131,26 +1131,6 @@ input[type="number"] {
   letter-spacing: 0.02em;
 }
 
-.order-id-link {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
-  text-align: left;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-
-.order-id-link:hover,
-.order-id-link:focus-visible {
-  color: var(--accent-strong);
-  outline: none;
-}
-
 .status-dot {
   width: 8px;
   height: 8px;
