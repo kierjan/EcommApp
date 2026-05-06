@@ -2364,7 +2364,8 @@ async function downloadSummaryImage(){
     return;
   }
   const imageSize=elements.summaryImageSize?.value==="whole"?"whole":"phone";
-  const exportWidth=imageSize==="phone"?390:1400;
+  const exportWidth=imageSize==="phone"?1080:1400;
+  const exportHeight=imageSize==="phone"?2400:null;
 
   const exportHost=document.createElement("div");
   exportHost.style.position="fixed";
@@ -2377,7 +2378,7 @@ async function downloadSummaryImage(){
   exportHost.innerHTML=`
     <style>${getSummaryStyles(imageSize)}</style>
     <div class="summary-export-root ${imageSize==="phone"?"phone-summary":"whole-summary"}">
-      ${buildSummaryMarkup(summaryData)}
+      ${buildSummaryMarkup(summaryData,imageSize)}
     </div>
   `;
   document.body.appendChild(exportHost);
@@ -2386,7 +2387,9 @@ async function downloadSummaryImage(){
     showMessage(`Generating ${imageSize==="phone"?"phone-size":"whole-size"} summary image...`,"success");
     const canvas=await window.html2canvas(exportHost.querySelector(".summary-export-root"),{
       backgroundColor:"#ffffff",
-      scale:2,
+      scale:imageSize==="phone"?1:2,
+      width:exportWidth,
+      height:exportHeight||undefined,
       useCORS:true
     });
     const link=document.createElement("a");
@@ -2416,11 +2419,13 @@ async function getSummaryRenderData(){
     preparedBy:day.approval.preparedBy,
     checkedBy:day.approval.checkedBy,
     daySummary,
-    summarySections
+    summarySections,
+    phoneSummarySections:platforms.map((platform)=>buildPhoneSummarySection(platform,day.platforms[platform])).filter(Boolean).join("")
   };
 }
 
-function buildSummaryMarkup(summaryData){
+function buildSummaryMarkup(summaryData,imageSize="whole"){
+  const sections=imageSize==="phone"?summaryData.phoneSummarySections:summaryData.summarySections;
   return `
     <div class="summary-header">
       <div>
@@ -2433,40 +2438,40 @@ function buildSummaryMarkup(summaryData){
     </div>
     ${buildSummaryOverviewHtml(summaryData.daySummary)}
     ${buildCourierTotalsTable(summaryData.daySummary.courierTotals)}
-    ${summaryData.summarySections}
+    ${sections}
   `;
 }
 
 function getSummaryStyles(imageSize="whole"){
   const phoneStyles=imageSize==="phone"?`
-    .summary-export-root{width:390px;padding:14px;font-size:11px;}
-    h1{font-size:20px;}
-    h2{font-size:14px;}
-    .summary-header{gap:10px;margin-bottom:12px;}
-    .summary-header img{max-width:108px;max-height:42px;}
-    .summary-grid,.summary-grid.secondary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
-    .summary-card{padding:7px;}
-    .summary-card-value{font-size:14px;}
-    table{display:block;border-collapse:separate;border-spacing:0;margin-bottom:14px;}
-    thead{display:none;}
-    tbody{display:grid;gap:8px;}
-    tr{display:block;border:1px solid #d7deea;border-radius:8px;background:#ffffff;overflow:hidden;}
-    td{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;border:0;border-bottom:1px solid #e7ebf2;padding:6px 7px;font-size:10px;word-break:break-word;}
-    td:last-child{border-bottom:0;}
-    td::before{color:#5e6b82;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.06em;}
-    td:nth-child(1)::before{content:"Order ID";}
-    td:nth-child(2)::before{content:"Items";}
-    td:nth-child(3)::before{content:"SRP";}
-    td:nth-child(4)::before{content:"Sales";}
-    td:nth-child(5)::before{content:"Courier";}
-    td:nth-child(6)::before{content:"Picture";}
-    td:nth-child(7)::before{content:"Pickup";}
-    td:nth-child(8)::before{content:"Status";}
-    td:nth-child(9)::before{content:"Reason";}
-    td:nth-child(10)::before{content:"Outcome";}
-    .table-total{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border:1px solid #d7deea;border-radius:8px;background:#f8fbff;}
-    .table-total td{display:block;border:0;font-weight:700;background:transparent;}
-    .table-total td::before{display:none;}
+    .summary-export-root{width:1080px;height:2400px;padding:34px 38px;font-size:24px;overflow:hidden;}
+    h1{font-size:44px;margin-bottom:10px;}
+    h2{font-size:28px;margin-bottom:14px;}
+    p{margin-bottom:7px;}
+    .summary-header{gap:22px;margin-bottom:26px;}
+    .summary-header img{max-width:240px;max-height:86px;}
+    .summary-overview{gap:18px;margin-bottom:22px;}
+    .summary-group{gap:10px;}
+    .summary-group-title{font-size:19px;}
+    .summary-grid,.summary-grid.secondary{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+    .summary-card{padding:14px 16px;border-radius:12px;}
+    .summary-card-label{font-size:16px;margin-bottom:7px;}
+    .summary-card-value{font-size:27px;}
+    .summary-card.secondary .summary-card-value{font-size:24px;}
+    .courier-table{margin-bottom:22px;}
+    table{margin-bottom:0;}
+    .phone-marketplace{margin-bottom:20px;}
+    .phone-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .phone-order-card{border:1px solid #d7deea;border-radius:12px;background:#ffffff;padding:12px 14px;}
+    .phone-order-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-weight:800;font-size:21px;}
+    .phone-order-id{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .phone-buyer{color:#2f8f61;font-size:18px;white-space:nowrap;}
+    .phone-items{margin:0 0 9px;color:#5e6b82;font-size:18px;line-height:1.25;min-height:44px;}
+    .phone-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+    .phone-metric{border-radius:10px;background:#f8fbff;padding:8px;}
+    .phone-metric span{display:block;color:#5e6b82;font-size:14px;text-transform:uppercase;font-weight:700;}
+    .phone-metric strong{display:block;margin-top:3px;font-size:19px;}
+    .phone-more{margin-top:10px;color:#5e6b82;font-weight:700;font-size:18px;}
   `:"";
   return `
     body{font-family:"Segoe UI",Arial,sans-serif;padding:16px;color:#142033;font-size:12px;background:#ffffff;}
@@ -2548,6 +2553,40 @@ function buildSummaryTable(platform,orders){
       </table>
     </section>
   `;
+}
+
+function buildPhoneSummarySection(platform,orders){
+  if(!orders||!orders.length){return "";}
+  const visibleOrders=orders.slice(0,12);
+  const hiddenCount=Math.max(0,orders.length-visibleOrders.length);
+  const cards=visibleOrders.map((order)=>`
+    <article class="phone-order-card">
+      <div class="phone-order-head">
+        <span class="phone-order-id">${escapeHtml(order.id)}</span>
+        ${order.buyerName?`<span class="phone-buyer">${escapeHtml(order.buyerName)}</span>`:""}
+      </div>
+      <p class="phone-items">${escapeHtml(buildCompactSummaryItemsLabel(order.items))}</p>
+      <div class="phone-metrics">
+        <div class="phone-metric"><span>SRP</span><strong>${formatMoney(getOrderSrpTotal(order))}</strong></div>
+        <div class="phone-metric"><span>Sales</span><strong>${order.totalSales===null?"-":formatMoney(order.totalSales)}</strong></div>
+        <div class="phone-metric"><span>Profit</span><strong>${formatSignedMoney(getProfitDifference(order)||0)}</strong></div>
+      </div>
+    </article>
+  `).join("");
+  return `
+    <section class="phone-marketplace">
+      <h2>${escapeHtml(platform)}</h2>
+      <div class="phone-order-list">${cards}</div>
+      ${hiddenCount?`<p class="phone-more">+${hiddenCount} more order${hiddenCount===1?"":"s"} in whole-size export</p>`:""}
+    </section>
+  `;
+}
+
+function buildCompactSummaryItemsLabel(items){
+  if(!items.length){return "-";}
+  const visibleItems=items.slice(0,2).map((item)=>`${item.item||item.sku||"Unknown"} x${item.qty}`);
+  const hiddenCount=Math.max(0,items.length-visibleItems.length);
+  return `${visibleItems.join(", ")}${hiddenCount?` +${hiddenCount} more`:""}`;
 }
 
 function buildOrderCollectionSummary(orders){
