@@ -31,6 +31,9 @@ function cacheElements(){
   elements.markAllPicture=document.getElementById("markAllPicture");
   elements.markAllPickup=document.getElementById("markAllPickup");
   elements.topMessage=document.getElementById("topMessage");
+  elements.auditCount=document.getElementById("auditCount");
+  elements.auditSummary=document.getElementById("auditSummary");
+  elements.auditList=document.getElementById("auditList");
   elements.syncBadge=document.getElementById("syncBadge");
   elements.syncStatusText=document.getElementById("syncStatusText");
   elements.syncStatusMeta=document.getElementById("syncStatusMeta");
@@ -455,6 +458,7 @@ async function renderApp(){
     updateViewTabBadges({totalOrders:0,pendingRequests:0,cancelled:0,returned:0});
     updatePlatformTabCounts({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
     updateBatchCheckStates({platforms:Object.fromEntries(platforms.map((platform)=>[platform,[]]))});
+    renderAuditPanel(null);
     renderSalesCalendar(store);
     platforms.forEach((platform)=>{
       renderDraftSection(platform,catalog);
@@ -492,8 +496,68 @@ function renderDayViews(day,catalog){
   updateViewTabBadges(buildDaySummary(day));
   updatePlatformTabCounts(day);
   updateBatchCheckStates(day);
+  renderAuditPanel(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
+}
+
+function renderAuditPanel(day){
+  if(!elements.auditCount||!elements.auditSummary||!elements.auditList){return;}
+  const issues=buildAuditIssues(day);
+  const counts=issues.reduce((summary,issue)=>{
+    summary[issue.type]=(summary[issue.type]||0)+1;
+    return summary;
+  },{sales:0,srp:0,courier:0});
+  elements.auditCount.textContent=String(issues.length);
+  elements.auditSummary.innerHTML=[
+    {label:"Total Sales",value:counts.sales||0,type:"sales"},
+    {label:"SRP",value:counts.srp||0,type:"srp"},
+    {label:"Courier",value:counts.courier||0,type:"courier"}
+  ].map((item)=>`
+    <div class="audit-summary-card ${item.value?"has-issues":"is-clear"}">
+      <span>${item.label}</span>
+      <strong>${item.value}</strong>
+    </div>
+  `).join("");
+  if(!day){
+    elements.auditList.innerHTML='<div class="audit-empty">Select a date to check orders.</div>';
+    return;
+  }
+  if(!issues.length){
+    elements.auditList.innerHTML='<div class="audit-empty">All clear for this day.</div>';
+    return;
+  }
+  elements.auditList.innerHTML=issues.slice(0,5).map((issue)=>`
+    <article class="audit-item">
+      <div class="audit-item-top">
+        <span class="audit-type">${escapeHtml(issue.label)}</span>
+        <span class="audit-platform">${escapeHtml(issue.platform)}</span>
+      </div>
+      <strong>${escapeHtml(issue.orderId)}</strong>
+      <p>${escapeHtml(issue.detail)}</p>
+    </article>
+  `).join("")+(issues.length>5?`<div class="audit-more">+${issues.length-5} more check${issues.length-5===1?"":"s"}</div>`:"");
+}
+
+function buildAuditIssues(day){
+  if(!day?.platforms){return [];}
+  return platforms.flatMap((platform)=>{
+    const activeOrders=getOrdersForStatus(day.platforms[platform]||[],"active");
+    return activeOrders.flatMap((order)=>{
+      const issues=[];
+      if(order.totalSales===null){
+        issues.push({type:"sales",label:"Missing total sales",platform,orderId:order.id,detail:"Enter the final buyer payment or sales amount."});
+      }
+      const hasMissingLineSrp=(order.items||[]).some((item)=>normalizeMoney(item?.srp)===null);
+      if(getOrderSrpTotal(order)===null||hasMissingLineSrp){
+        issues.push({type:"srp",label:"Missing SRP",platform,orderId:order.id,detail:"Add SRP so profit totals stay accurate."});
+      }
+      if(!String(order.courier||"").trim()){
+        issues.push({type:"courier",label:"Missing courier",platform,orderId:order.id,detail:"Choose the courier assigned to this order."});
+      }
+      return issues;
+    });
+  });
 }
 
 function renderSalesCalendar(store=uiState.store||{}){

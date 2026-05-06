@@ -10,7 +10,7 @@
   <title>Solareco Daily Orders</title>
   <link rel="icon" type="image/svg+xml" href="cart-icon.svg?v=20260506">
   <link rel="apple-touch-icon" href="cart-icon.svg?v=20260506">
-  <link rel="stylesheet" href="style.css?v=20260505-lazada-sales-complete">
+  <link rel="stylesheet" href="style.css?v=20260506-audit-strip">
   <link rel="stylesheet" href="darkmode-visibility.css?v=20260504-live">
 </head>
 <body>
@@ -89,6 +89,18 @@
         </div>
       </section>
     </div>
+
+    <section class="audit-strip panel" aria-labelledby="audit-title">
+      <div class="audit-strip-head">
+        <div>
+          <p class="section-label">Audit Needed</p>
+          <h2 id="audit-title">Quick checks</h2>
+        </div>
+        <span class="audit-count-pill" id="auditCount">0</span>
+      </div>
+      <div class="audit-summary" id="auditSummary" aria-live="polite"></div>
+      <div class="audit-list" id="auditList" aria-live="polite"></div>
+    </section>
 
     <section class="view-switcher" aria-label="Choose order page">
       <button type="button" class="view-tab is-active" data-view-tab="orders" aria-pressed="true">
@@ -483,7 +495,7 @@
   <script src="firebase-config.js?v=20260418-1500"></script>
   <script type="module" src="firebase-service.js?v=20260418-1500"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="script.js?v=20260506-shopee-csv-import" defer></script>
+  <script src="script.js?v=20260506-audit-strip" defer></script>
   <script src="summary-status-fix.js?v=20260505-summary-cleanup" defer></script>
   <script src="summary-preview.js?v=20260505-live" defer></script>
 </body>
