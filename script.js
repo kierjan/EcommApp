@@ -2310,7 +2310,7 @@ function normalizeQuantity(value){
 
 function buildSummaryItemsLabel(items){
   if(!items.length){return "-";}
-  return items.map((item)=>`${item.item||item.sku||"Unknown"} x${item.qty}`).join(", ");
+  return items.map((item)=>`${item.item||item.sku||"Unknown"} x${item.qty}`).join("\n");
 }
 
 function buildSummaryReasonLabel(order){
@@ -2471,7 +2471,7 @@ function getSummaryStyles(imageSize="whole"){
     .phone-order-head{display:grid;gap:8px;margin-bottom:12px;font-weight:800;font-size:32px;}
     .phone-order-id{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .phone-buyer{color:#2f8f61;font-size:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .phone-items{margin:0 0 12px;color:#5e6b82;font-size:28px;line-height:1.25;min-height:70px;}
+    .phone-items{margin:0 0 12px;color:#5e6b82;font-size:28px;line-height:1.25;min-height:70px;white-space:pre-line;}
     .phone-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
     .phone-metric{border-radius:12px;background:#f8fbff;padding:10px;}
     .phone-metric span{display:block;color:#5e6b82;font-size:21px;text-transform:uppercase;font-weight:700;}
@@ -2501,6 +2501,7 @@ function getSummaryStyles(imageSize="whole"){
     img{max-width:140px;max-height:54px;object-fit:contain;}
     table{width:100%;border-collapse:collapse;margin-bottom:16px;}
     th,td{border:1px solid #d7deea;padding:6px 7px;text-align:left;vertical-align:top;font-size:11px;}
+    td:nth-child(2){white-space:pre-line;}
     th{background:#f4f7fb;font-size:10px;}
     ${phoneStyles}
   `;
@@ -2595,7 +2596,7 @@ function buildCompactSummaryItemsLabel(items){
   if(!items.length){return "-";}
   const visibleItems=items.slice(0,2).map((item)=>`${item.item||item.sku||"Unknown"} x${item.qty}`);
   const hiddenCount=Math.max(0,items.length-visibleItems.length);
-  return `${visibleItems.join(", ")}${hiddenCount?` +${hiddenCount} more`:""}`;
+  return `${visibleItems.join("\n")}${hiddenCount?`\n+${hiddenCount} more`:""}`;
 }
 
 function buildOrderCollectionSummary(orders){
