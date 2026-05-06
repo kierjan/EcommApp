@@ -2444,34 +2444,38 @@ function buildSummaryMarkup(summaryData,imageSize="whole"){
 
 function getSummaryStyles(imageSize="whole"){
   const phoneStyles=imageSize==="phone"?`
-    .summary-export-root{width:1080px;height:2400px;padding:34px 38px;font-size:24px;overflow:hidden;}
-    h1{font-size:44px;margin-bottom:10px;}
-    h2{font-size:28px;margin-bottom:14px;}
-    p{margin-bottom:7px;}
-    .summary-header{gap:22px;margin-bottom:26px;}
-    .summary-header img{max-width:240px;max-height:86px;}
-    .summary-overview{gap:18px;margin-bottom:22px;}
-    .summary-group{gap:10px;}
-    .summary-group-title{font-size:19px;}
-    .summary-grid,.summary-grid.secondary{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
-    .summary-card{padding:14px 16px;border-radius:12px;}
-    .summary-card-label{font-size:16px;margin-bottom:7px;}
-    .summary-card-value{font-size:27px;}
-    .summary-card.secondary .summary-card-value{font-size:24px;}
-    .courier-table{margin-bottom:22px;}
+    .summary-export-root{width:1080px;height:2400px;padding:42px 46px;font-size:29px;overflow:hidden;}
+    h1{font-size:58px;margin-bottom:14px;}
+    h2{font-size:38px;margin-bottom:18px;}
+    p{margin-bottom:9px;}
+    .summary-header{gap:26px;margin-bottom:34px;}
+    .summary-header img{max-width:270px;max-height:98px;}
+    .summary-overview{gap:22px;margin-bottom:28px;}
+    .summary-group{gap:12px;}
+    .summary-group-title{font-size:23px;}
+    .summary-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
+    .summary-grid.secondary{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+    .summary-card{padding:18px 18px;border-radius:14px;}
+    .summary-card-label{font-size:19px;margin-bottom:8px;}
+    .summary-card-value{font-size:34px;}
+    .summary-card.secondary .summary-card-value{font-size:31px;}
+    .courier-table{margin-bottom:28px;}
     table{margin-bottom:0;}
-    .phone-marketplace{margin-bottom:20px;}
-    .phone-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
-    .phone-order-card{border:1px solid #d7deea;border-radius:12px;background:#ffffff;padding:12px 14px;}
-    .phone-order-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;font-weight:800;font-size:21px;}
+    .phone-marketplace{margin-bottom:26px;}
+    .phone-marketplace-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;padding:16px 18px;border-radius:16px;background:#142033;color:#ffffff;}
+    .phone-marketplace-head h2{margin:0;font-size:42px;color:#ffffff;}
+    .phone-marketplace-head span{font-size:25px;font-weight:800;white-space:nowrap;}
+    .phone-order-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+    .phone-order-card{border:1px solid #d7deea;border-radius:14px;background:#ffffff;padding:16px 18px;}
+    .phone-order-head{display:grid;gap:7px;margin-bottom:10px;font-weight:800;font-size:27px;}
     .phone-order-id{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .phone-buyer{color:#2f8f61;font-size:18px;white-space:nowrap;}
-    .phone-items{margin:0 0 9px;color:#5e6b82;font-size:18px;line-height:1.25;min-height:44px;}
-    .phone-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
-    .phone-metric{border-radius:10px;background:#f8fbff;padding:8px;}
-    .phone-metric span{display:block;color:#5e6b82;font-size:14px;text-transform:uppercase;font-weight:700;}
-    .phone-metric strong{display:block;margin-top:3px;font-size:19px;}
-    .phone-more{margin-top:10px;color:#5e6b82;font-weight:700;font-size:18px;}
+    .phone-buyer{color:#2f8f61;font-size:23px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .phone-items{margin:0 0 12px;color:#5e6b82;font-size:23px;line-height:1.25;min-height:58px;}
+    .phone-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+    .phone-metric{border-radius:12px;background:#f8fbff;padding:10px;}
+    .phone-metric span{display:block;color:#5e6b82;font-size:17px;text-transform:uppercase;font-weight:700;}
+    .phone-metric strong{display:block;margin-top:5px;font-size:24px;}
+    .phone-more{margin-top:12px;color:#5e6b82;font-weight:700;font-size:23px;}
   `:"";
   return `
     body{font-family:"Segoe UI",Arial,sans-serif;padding:16px;color:#142033;font-size:12px;background:#ffffff;}
@@ -2557,7 +2561,8 @@ function buildSummaryTable(platform,orders){
 
 function buildPhoneSummarySection(platform,orders){
   if(!orders||!orders.length){return "";}
-  const visibleOrders=orders.slice(0,12);
+  const totals=buildOrderCollectionSummary(orders);
+  const visibleOrders=orders.slice(0,8);
   const hiddenCount=Math.max(0,orders.length-visibleOrders.length);
   const cards=visibleOrders.map((order)=>`
     <article class="phone-order-card">
@@ -2575,7 +2580,10 @@ function buildPhoneSummarySection(platform,orders){
   `).join("");
   return `
     <section class="phone-marketplace">
-      <h2>${escapeHtml(platform)}</h2>
+      <div class="phone-marketplace-head">
+        <h2>${escapeHtml(platform)}</h2>
+        <span>${orders.length} orders · ${totals.pickedUp} picked up</span>
+      </div>
       <div class="phone-order-list">${cards}</div>
       ${hiddenCount?`<p class="phone-more">+${hiddenCount} more order${hiddenCount===1?"":"s"} in whole-size export</p>`:""}
     </section>
@@ -2655,8 +2663,12 @@ function buildSummaryOverviewHtml(summary){
         </div>
       </div>
       <div class="summary-group">
-        <p class="summary-group-title">Cancelled / Returned Records</p>
+        <p class="summary-group-title">Fulfillment Records</p>
         <div class="summary-grid secondary">
+          <div class="summary-card secondary">
+            <p class="summary-card-label">Total Picked Up</p>
+            <p class="summary-card-value">${summary.pickedUp}</p>
+          </div>
           <div class="summary-card secondary">
             <p class="summary-card-label">Cancelled Orders</p>
             <p class="summary-card-value">${summary.cancelled}</p>
