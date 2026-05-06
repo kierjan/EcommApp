@@ -350,7 +350,11 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,items,totalSales:normalizeMoney(rawOrder?.totalSales),srpTotal:normalizeMoney(rawOrder?.srpTotal),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",createdAt:normalizeImportedCreatedAt(rawOrder?.createdAt),createdSequence:normalizeImportedSequence(rawOrder?.createdSequence),cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,buyerName:normalizeBuyerName(rawOrder?.buyerName),items,totalSales:normalizeMoney(rawOrder?.totalSales),srpTotal:normalizeMoney(rawOrder?.srpTotal),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",createdAt:normalizeImportedCreatedAt(rawOrder?.createdAt),createdSequence:normalizeImportedSequence(rawOrder?.createdSequence),cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+}
+
+function normalizeBuyerName(value){
+  return typeof value==="string"?value.trim():String(value||"").trim();
 }
 
 function buildLegacyItems(rawOrder){
@@ -921,11 +925,14 @@ function createCancelRequestCard(platform,order,index=0){
   item.dataset.uid=order.uid;
   item.dataset.platform=platform;
   const request=order.cancelRequest;
+  const buyerNameHtml=buildBuyerNameHtml(order);
+  const orderNumberLabel=`Order #${index+1}`;
   item.innerHTML=`
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
         <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
+        ${buyerNameHtml}
       </div>
       <div class="order-top-actions">
         <span class="request-pill">${orderNumberLabel}</span>
@@ -954,6 +961,11 @@ function buildOrderNoteHtml(order){
   `;
 }
 
+function buildBuyerNameHtml(order){
+  const buyerName=normalizeBuyerName(order?.buyerName);
+  return buyerName?`<span class="buyer-name-pill">${escapeHtml(buyerName)}</span>`:"";
+}
+
 function createOrderCard(platform,order,catalog,index=0){
   const item=document.createElement("li");
   item.className="order-item";
@@ -964,6 +976,7 @@ function createOrderCard(platform,order,catalog,index=0){
   if(orderState==="cancelled"){item.classList.add("is-cancelled");}
   if(orderState==="returned"){item.classList.add("is-returned");}
   const salesOutcome=getSalesOutcome(order);
+  const buyerNameHtml=buildBuyerNameHtml(order);
   const createdMeta=order.createdAt?`<span class="item-count-indicator">${escapeHtml(formatOrderCreatedAt(order.createdAt))}</span>`:"";
   const courierOptionsHtml=courierOptions.map((option)=>{
     const selected=order.courier===option?" selected":"";
@@ -1009,6 +1022,7 @@ function createOrderCard(platform,order,catalog,index=0){
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
         <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
+        ${buyerNameHtml}
       </div>
       <div class="order-top-actions">
         <span class="item-count-indicator">${order.items.length} item${order.items.length===1?"":"s"}</span>
@@ -1569,6 +1583,7 @@ function parseShopeeImportRows(rows,catalog){
     const skuReference=sanitizeSku(row[13]);
     const variationName=typeof row[14]==="string"?row[14].trim():String(row[14]||"").trim();
     if(!skuReference&&!variationName){return;}
+    const buyerName=normalizeBuyerName(row[41]);
     const buyerPayment=normalizeMoney(row[34]);
     const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
     const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
@@ -1591,6 +1606,7 @@ function parseShopeeImportRows(rows,catalog){
       if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
       if(note&&!existingGroup.note){existingGroup.note=note;}
       if(invoiceRequestType){existingGroup.invoiceRequested=true;}
+      if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
       if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
       return;
@@ -1598,6 +1614,7 @@ function parseShopeeImportRows(rows,catalog){
 
     groupedOrders.set(orderId,{
       id:orderId,
+      buyerName,
       items:[lineItem],
       courier:normalizeImportedCourier(shippingOption),
       buyerPayment:buyerPayment,
@@ -1613,6 +1630,7 @@ function parseShopeeImportRows(rows,catalog){
     .map((order)=>({
       uid:buildUid("order"),
       id:order.id,
+      buyerName:order.buyerName,
       items:mergeLineItems(order.items),
       totalSales:null,
       srpTotal:null,
@@ -1640,6 +1658,7 @@ function parseLazadaImportRows(rows,catalog){
     const orderId=sanitizeOrderId(row[0]);
     const skuReference=sanitizeSku(row[5]);
     if(!orderId||!skuReference){return;}
+    const buyerName=normalizeBuyerName(row[16]);
 
     const catalogEntry=findCatalogEntryBySearch(skuReference,catalog);
     const lineItem={
@@ -1659,12 +1678,14 @@ function parseLazadaImportRows(rows,catalog){
       existingGroup.items.push(lineItem);
       existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
       if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
+      if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
       if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
       return;
     }
 
     groupedOrders.set(orderId,{
       id:orderId,
+      buyerName,
       items:[lineItem],
       buyerPayment:buyerPayment,
       createdAt,
@@ -1677,6 +1698,7 @@ function parseLazadaImportRows(rows,catalog){
     .map((order)=>({
       uid:buildUid("order"),
       id:order.id,
+      buyerName:order.buyerName,
       items:mergeLineItems(order.items),
       totalSales:null,
       srpTotal:null,
@@ -1757,6 +1779,7 @@ function upsertImportedOrders(existingOrders,importedOrders){
     const existingOrder=nextOrders.find((order)=>order.id.toLowerCase()===importedOrder.id.toLowerCase());
     if(existingOrder){
       existingOrder.items=importedOrder.items;
+      if(importedOrder.buyerName){existingOrder.buyerName=importedOrder.buyerName;}
       existingOrder.buyerPayment=importedOrder.buyerPayment;
       existingOrder.courier=importedOrder.courier;
       existingOrder.invoiceRequested=importedOrder.invoiceRequested;

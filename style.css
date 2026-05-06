@@ -1313,9 +1313,27 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
   font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.buyer-name-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  max-width: 220px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(47, 143, 97, 0.1);
+  color: var(--accent-strong);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-dot {
