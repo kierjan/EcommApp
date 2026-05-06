@@ -1334,8 +1334,7 @@ async function handleShopeeImport(event){
   showMessage("Importing Shopee to ship file...","success");
 
   try{
-    const buffer=await file.arrayBuffer();
-    const workbook=window.XLSX.read(buffer,{type:"array",cellDates:true});
+    const workbook=await readImportWorkbook(file);
     const rows=getShopeeImportRows(workbook);
     const parsedImport=parseShopeeImportRows(rows,readCatalog());
     if(!parsedImport.orders.length){
@@ -1420,6 +1419,16 @@ function resetLazadaImportInput(){
 
 function getShopeeImportRows(workbook){
   return getSpreadsheetImportRows(workbook).slice(1);
+}
+
+async function readImportWorkbook(file){
+  const isCsv=/\.csv$/i.test(file?.name||"")||file?.type==="text/csv";
+  if(isCsv){
+    const text=await file.text();
+    return window.XLSX.read(text,{type:"string",cellDates:true});
+  }
+  const buffer=await file.arrayBuffer();
+  return window.XLSX.read(buffer,{type:"array",cellDates:true});
 }
 
 function getSpreadsheetImportRows(workbook){
