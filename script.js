@@ -1,5 +1,6 @@
 const STORAGE_KEY="orders";
 const THEME_KEY="themePreference";
+const SHOPEE_SELLER_ORDER_URL="https://seller.shopee.ph/portal/sale/order";
 const platforms=["Shopee","Lazada","TikTok"];
 const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
@@ -932,7 +933,7 @@ function createCancelRequestCard(platform,order,index=0){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
+        ${buildOrderIdHtml(platform,order,index)}
         ${buyerNameHtml}
       </div>
       <div class="order-top-actions">
@@ -965,6 +966,14 @@ function buildOrderNoteHtml(order){
 function buildBuyerNameHtml(order){
   const buyerName=normalizeBuyerName(order?.buyerName);
   return buyerName?`<span class="buyer-name-pill">${escapeHtml(buyerName)}</span>`:"";
+}
+
+function buildOrderIdHtml(platform,order,index){
+  const label=`Order #${index+1} · ${escapeHtml(order.id)}`;
+  if(platform==="Shopee"){
+    return `<button type="button" class="order-id-link" data-action="open-shopee-order" title="Copy order ID and open Shopee Seller Center">${label}</button>`;
+  }
+  return `<span>${label}</span>`;
 }
 
 function createOrderCard(platform,order,catalog,index=0){
@@ -1022,7 +1031,7 @@ function createOrderCard(platform,order,catalog,index=0){
     <div class="order-top">
       <div class="order-id">
         <span class="status-dot" aria-hidden="true"></span>
-        <span>Order #${index+1} · ${escapeHtml(order.id)}</span>
+        ${buildOrderIdHtml(platform,order,index)}
         ${buyerNameHtml}
       </div>
       <div class="order-top-actions">
@@ -1938,6 +1947,10 @@ async function handleSavedOrderClick(event){
   if(!action){return;}
   const order=findSavedOrder(event.target);
   if(!order){return;}
+  if(action==="open-shopee-order"){
+    await openShopeeSellerOrder(order.record.id);
+    return;
+  }
   if(action==="toggle-line-details"){
     const lineId=event.target.closest("[data-line-id]")?.dataset.lineId;
     if(!lineId){return;}
@@ -2024,6 +2037,37 @@ async function handleSavedOrderClick(event){
     if(uiState.expandedLineId===lineId){uiState.expandedLineId=null;}
     void persistSavedOrderChanges(order.store,order.platform);
   }
+}
+
+async function openShopeeSellerOrder(orderId){
+  const safeOrderId=sanitizeOrderId(orderId);
+  if(!safeOrderId){return;}
+  const copied=await copyTextToClipboard(safeOrderId);
+  window.open(SHOPEE_SELLER_ORDER_URL,"_blank","noopener,noreferrer");
+  showMessage(copied?`Shopee order ID ${safeOrderId} copied. Paste it in Seller Center search.`:`Shopee Seller Center opened. Copy this order ID: ${safeOrderId}`,"success");
+}
+
+async function copyTextToClipboard(value){
+  try{
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  }catch(error){
+    console.warn("Clipboard copy failed:",error);
+  }
+  const tempInput=document.createElement("textarea");
+  tempInput.value=value;
+  tempInput.setAttribute("readonly","");
+  tempInput.style.position="fixed";
+  tempInput.style.left="-9999px";
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  let copied=false;
+  try{copied=document.execCommand("copy");}
+  catch(error){console.warn("Fallback clipboard copy failed:",error);}
+  tempInput.remove();
+  return copied;
 }
 
 function handleSavedOrderChange(event){

@@ -1344,6 +1344,24 @@ input[type="number"] {
   letter-spacing: 0.02em;
 }
 
+.order-id-link {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.order-id-link:hover,
+.order-id-link:focus-visible {
+  color: #f36f21;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .buyer-name-pill {
   display: inline-flex;
   align-items: center;
