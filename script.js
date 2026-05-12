@@ -30,7 +30,7 @@ function cacheElements(){
   elements.importLazadaBtn=document.getElementById("importLazadaBtn");
   elements.lazadaImportInput=document.getElementById("lazadaImportInput");
   elements.markAllPicture=document.getElementById("markAllPicture");
-  elements.markAllPickup=document.getElementById("markAllPickup");
+  elements.courierPickupChecks=Array.from(document.querySelectorAll("[data-courier-pickup]"));
   elements.topMessage=document.getElementById("topMessage");
   elements.auditCount=document.getElementById("auditCount");
   elements.auditSummary=document.getElementById("auditSummary");
@@ -149,7 +149,9 @@ function bindEvents(){
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
   elements.lazadaImportInput?.addEventListener("change",(event)=>{void handleLazadaImport(event);});
   elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
-  elements.markAllPickup.addEventListener("change",()=>{void applyBatchOrderCheck("pickup",elements.markAllPickup.checked);});
+  elements.courierPickupChecks.forEach((checkbox)=>{
+    checkbox.addEventListener("change",()=>{void applyCourierPickupCheck(checkbox.dataset.courierPickup,checkbox.checked);});
+  });
   elements.viewTabs.forEach((tab)=>tab.addEventListener("click",()=>setActiveView(tab.dataset.viewTab)));
   elements.platformTabs.forEach((tab)=>tab.addEventListener("click",()=>setActivePlatform(tab.dataset.platformTab)));
     platforms.forEach((platform)=>{
@@ -1310,16 +1312,17 @@ function updateBatchCheckStates(day){
   const activeOrders=platforms.flatMap((platform)=>getOrdersForStatus(day?.platforms?.[platform]||[],"active"));
   const hasOrders=activeOrders.length>0;
   const allPictureSent=hasOrders&&activeOrders.every((order)=>order.picture);
-  const allPickedUp=hasOrders&&activeOrders.every((order)=>order.pickup);
 
   if(elements.markAllPicture){
     elements.markAllPicture.checked=allPictureSent;
     elements.markAllPicture.disabled=!hasOrders;
   }
-  if(elements.markAllPickup){
-    elements.markAllPickup.checked=allPickedUp;
-    elements.markAllPickup.disabled=!hasOrders;
-  }
+  elements.courierPickupChecks?.forEach((checkbox)=>{
+    const courier=checkbox.dataset.courierPickup;
+    const courierOrders=activeOrders.filter((order)=>order.courier===courier);
+    checkbox.checked=courierOrders.length>0&&courierOrders.every((order)=>order.pickup);
+    checkbox.disabled=!courierOrders.length;
+  });
 }
 
 async function applyBatchOrderCheck(field,checked){
@@ -1338,6 +1341,24 @@ async function applyBatchOrderCheck(field,checked){
   await writeDay(dateKey,day,{suppressMessage:true});
   refreshDayViews();
   showMessage(`${field==="picture"?"Picture sent":"Picked up"} updated for all active orders.`,"success");
+}
+
+async function applyCourierPickupCheck(courier,checked){
+  const dateKey=getDateKey();
+  if(!dateKey||!courier){return;}
+  const store=normalizeStore(uiState.store||await readStore());
+  const day=ensureDay(store,dateKey);
+  const activeCourierOrders=platforms.flatMap((platform)=>getOrdersForStatus(day.platforms[platform]||[],"active").filter((order)=>order.courier===courier));
+  if(!activeCourierOrders.length){
+    showMessage(`There are no active ${courier} orders for this date.`,"error");
+    updateBatchCheckStates(day);
+    return;
+  }
+
+  activeCourierOrders.forEach((order)=>{order.pickup=checked;});
+  await writeDay(dateKey,day,{suppressMessage:true});
+  refreshDayViews();
+  showMessage(`${courier} pickup ${checked?"checked":"unchecked"} for ${activeCourierOrders.length} active order${activeCourierOrders.length===1?"":"s"}.`,"success");
 }
 
 function updateRequestCount(platform,total){
