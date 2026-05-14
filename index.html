@@ -10,7 +10,7 @@
   <title>Solareco Daily Orders</title>
   <link rel="icon" type="image/svg+xml" href="cart-icon.svg?v=20260506">
   <link rel="apple-touch-icon" href="cart-icon.svg?v=20260506">
-  <link rel="stylesheet" href="style.css?v=20260514-shopee-overall-import">
+  <link rel="stylesheet" href="style.css?v=20260514-order-search-locate">
   <link rel="stylesheet" href="darkmode-visibility.css?v=20260504-live">
 </head>
 <body>
@@ -38,10 +38,6 @@
           <label class="field">
             <span>Date</span>
             <input type="date" id="date">
-          </label>
-          <label class="field">
-            <span>Search Order ID</span>
-            <input type="text" id="orderSearch" placeholder="Find order ID" autocomplete="off">
           </label>
         </div>
         <div class="sync-status-panel" aria-live="polite">
@@ -167,6 +163,10 @@
               <h2>Shopee</h2>
             </div>
             <div class="board-head-actions">
+              <label class="board-search-field" aria-label="Search Shopee order ID">
+                <span>Search Order ID</span>
+                <input type="text" class="order-search-input" placeholder="Find order ID" autocomplete="off">
+              </label>
               <input type="file" id="shopeeImportInput" class="visually-hidden" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
               <input type="file" id="shopeeOverallImportInput" class="visually-hidden" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
               <button type="button" class="secondary-btn compact-btn board-head-btn" id="importShopeeBtn">Import</button>
@@ -232,6 +232,10 @@
               <h2>Lazada</h2>
             </div>
             <div class="board-head-actions">
+              <label class="board-search-field" aria-label="Search Lazada order ID">
+                <span>Search Order ID</span>
+                <input type="text" class="order-search-input" placeholder="Find order ID" autocomplete="off">
+              </label>
               <input type="file" id="lazadaImportInput" class="visually-hidden" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
               <button type="button" class="secondary-btn compact-btn board-head-btn" id="importLazadaBtn">Import</button>
               <button type="button" class="secondary-btn compact-btn board-head-btn" data-action="open-draft" data-platform="Lazada" id="openDraftBtn-Lazada">Add Order</button>
@@ -295,6 +299,10 @@
               <h2>TikTok</h2>
             </div>
             <div class="board-head-actions">
+              <label class="board-search-field" aria-label="Search TikTok order ID">
+                <span>Search Order ID</span>
+                <input type="text" class="order-search-input" placeholder="Find order ID" autocomplete="off">
+              </label>
               <button type="button" class="secondary-btn compact-btn board-head-btn" data-action="open-draft" data-platform="TikTok" id="openDraftBtn-TikTok">Add Order</button>
               <span class="count-pill" id="count-TikTok">0 / 0 complete</span>
             </div>
@@ -515,7 +523,7 @@
   <script src="firebase-config.js?v=20260418-1500"></script>
   <script type="module" src="firebase-service.js?v=20260418-1500"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="script.js?v=20260514-shopee-overall-import" defer></script>
+  <script src="script.js?v=20260514-order-search-locate" defer></script>
   <script src="summary-status-fix.js?v=20260506-summary-sku-lines" defer></script>
   <script src="summary-preview.js?v=20260505-live" defer></script>
 </body>

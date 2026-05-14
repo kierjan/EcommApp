@@ -21,7 +21,8 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
 function cacheElements(){
   elements.date=document.getElementById("date");
-  elements.orderSearch=document.getElementById("orderSearch");
+  elements.orderSearchInputs=Array.from(document.querySelectorAll(".order-search-input"));
+  elements.orderSearch=elements.orderSearchInputs[0]||null;
   elements.skuOptions=document.getElementById("skuOptions");
   elements.preparedBy=document.getElementById("preparedBy");
   elements.checkedBy=document.getElementById("checkedBy");
@@ -134,9 +135,8 @@ function bindEvents(){
       clearMessage();
       await renderApp();
     });
-    elements.orderSearch.addEventListener("input",()=>{
-      uiState.orderSearch=elements.orderSearch.value;
-      refreshDayViews();
+    elements.orderSearchInputs?.forEach((input)=>{
+      input.addEventListener("input",(event)=>handleOrderSearchInput(event));
     });
   elements.preparedBy.addEventListener("input",saveApproval);
   elements.checkedBy.addEventListener("input",saveApproval);
@@ -495,9 +495,7 @@ async function renderApp(){
 }
 
 function renderDayViews(day,catalog){
-  if(elements.orderSearch&&elements.orderSearch.value!==uiState.orderSearch){
-    elements.orderSearch.value=uiState.orderSearch;
-  }
+  syncOrderSearchInputs(uiState.orderSearch);
   platforms.forEach((platform)=>{
     const platformOrders=day.platforms[platform]||[];
     renderDraftSection(platform,catalog);
@@ -512,6 +510,60 @@ function renderDayViews(day,catalog){
   renderAuditPanel(day);
   setActivePlatform(uiState.activePlatform);
   setActiveView(uiState.activeView);
+}
+
+function handleOrderSearchInput(event){
+  const value=event.target?.value||"";
+  uiState.orderSearch=value;
+  syncOrderSearchInputs(value,event.target);
+  const location=findOrderSearchLocation(value);
+  if(location){
+    uiState.activeView=location.view;
+    uiState.activePlatform=location.platform;
+  }
+  refreshDayViews();
+  if(location){window.requestAnimationFrame(()=>scrollToSearchOrder(location));}
+}
+
+function syncOrderSearchInputs(value,sourceInput=null){
+  elements.orderSearchInputs?.forEach((input)=>{
+    if(input!==sourceInput&&input.value!==value){input.value=value;}
+  });
+}
+
+function findOrderSearchLocation(value){
+  const query=sanitizeOrderId(value).toLowerCase();
+  if(!query){return null;}
+  const dateKey=getDateKey();
+  const day=dateKey?normalizeDayRecord(uiState.store?.[dateKey]):null;
+  if(!day?.platforms){return null;}
+  const viewSearches=[
+    {view:"orders",ordersFor:(orders)=>getOrdersForStatus(orders,"active")},
+    {view:"requests",ordersFor:(orders)=>getOrdersWithCancelRequest(orders)},
+    {view:"cancelled",ordersFor:(orders)=>getOrdersForStatus(orders,"cancelled")},
+    {view:"returned",ordersFor:(orders)=>getOrdersForStatus(orders,"returned")}
+  ];
+  for(const search of viewSearches){
+    for(const platform of platforms){
+      const match=search.ordersFor(day.platforms[platform]||[]).find((order)=>sanitizeOrderId(order.id).toLowerCase().includes(query));
+      if(match){return{platform,view:search.view,uid:match.uid};}
+    }
+  }
+  return null;
+}
+
+function scrollToSearchOrder(location){
+  const activeSection=elements.viewSections?.find((section)=>section.dataset.viewSection===location.view);
+  const targetOrder=Array.from(activeSection?.querySelectorAll("[data-platform-board]")||[])
+    .find((board)=>board.dataset.platformBoard===location.platform)
+    ?.querySelector(`[data-uid="${cssEscape(location.uid)}"]`);
+  if(!targetOrder){return;}
+  targetOrder.classList.remove("is-search-target");
+  targetOrder.scrollIntoView({behavior:"smooth",block:"center"});
+  window.setTimeout(()=>{
+    targetOrder.classList.add("is-search-target");
+    window.setTimeout(()=>targetOrder.classList.remove("is-search-target"),1200);
+  },220);
 }
 
 function renderAuditPanel(day){
@@ -589,7 +641,7 @@ function locateAuditIssue(issue){
   uiState.activeView="orders";
   uiState.activePlatform=issue.platform;
   uiState.orderSearch="";
-  if(elements.orderSearch){elements.orderSearch.value="";}
+  syncOrderSearchInputs("");
   if(issue.lineId){uiState.expandedLineId=issue.lineId;}
   refreshDayViews();
   window.requestAnimationFrame(()=>scrollToAuditOrder(issue));
@@ -932,6 +984,7 @@ function createCancelRequestCard(platform,order,index=0){
   item.className="order-item request-order-item";
   item.dataset.uid=order.uid;
   item.dataset.platform=platform;
+  item.dataset.orderId=sanitizeOrderId(order.id).toLowerCase();
   const request=order.cancelRequest;
   const buyerNameHtml=buildBuyerNameHtml(order);
   const orderNumberLabel=`Order #${index+1}`;
@@ -987,6 +1040,7 @@ function createOrderCard(platform,order,catalog,index=0){
   item.className="order-item";
   item.dataset.uid=order.uid;
   item.dataset.platform=platform;
+  item.dataset.orderId=sanitizeOrderId(order.id).toLowerCase();
   const orderState=normalizeOrderStatus(order.status);
   if(isComplete(order)){item.classList.add("is-complete");}
   if(orderState==="cancelled"){item.classList.add("is-cancelled");}
