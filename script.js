@@ -27,6 +27,8 @@ function cacheElements(){
   elements.checkedBy=document.getElementById("checkedBy");
   elements.importShopeeBtn=document.getElementById("importShopeeBtn");
   elements.shopeeImportInput=document.getElementById("shopeeImportInput");
+  elements.importShopeeOverallBtn=document.getElementById("importShopeeOverallBtn");
+  elements.shopeeOverallImportInput=document.getElementById("shopeeOverallImportInput");
   elements.importLazadaBtn=document.getElementById("importLazadaBtn");
   elements.lazadaImportInput=document.getElementById("lazadaImportInput");
   elements.markAllPicture=document.getElementById("markAllPicture");
@@ -146,6 +148,8 @@ function bindEvents(){
   elements.auditList?.addEventListener("click",handleAuditClick);
   elements.importShopeeBtn?.addEventListener("click",()=>elements.shopeeImportInput?.click());
   elements.shopeeImportInput?.addEventListener("change",(event)=>{void handleShopeeImport(event);});
+  elements.importShopeeOverallBtn?.addEventListener("click",()=>elements.shopeeOverallImportInput?.click());
+  elements.shopeeOverallImportInput?.addEventListener("change",(event)=>{void handleShopeeOverallImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
   elements.lazadaImportInput?.addEventListener("change",(event)=>{void handleLazadaImport(event);});
   elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
@@ -354,7 +358,7 @@ function normalizeOrder(rawOrder){
   const safeId=sanitizeOrderId(rawOrder?.id);
   const safeCourier=courierOptions.includes(rawOrder?.courier)?rawOrder.courier:courierOptions[0];
   const items=Array.isArray(rawOrder?.items)?rawOrder.items.map((item)=>normalizeLineItem(item)).filter(isMeaningfulLineItem):buildLegacyItems(rawOrder);
-  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,buyerName:normalizeBuyerName(rawOrder?.buyerName),items,totalSales:normalizeMoney(rawOrder?.totalSales),srpTotal:normalizeMoney(rawOrder?.srpTotal),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",createdAt:normalizeImportedCreatedAt(rawOrder?.createdAt),createdSequence:normalizeImportedSequence(rawOrder?.createdSequence),cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
+  return{uid:typeof rawOrder?.uid==="string"&&rawOrder.uid?rawOrder.uid:buildUid("order"),id:safeId,buyerName:normalizeBuyerName(rawOrder?.buyerName),items,totalSales:normalizeMoney(rawOrder?.totalSales),srpTotal:normalizeMoney(rawOrder?.srpTotal),buyerPayment:normalizeMoney(rawOrder?.buyerPayment),courier:safeCourier,picture:Boolean(rawOrder?.picture),pickup:Boolean(rawOrder?.pickup),invoiceRequested:Boolean(rawOrder?.invoiceRequested),status:normalizeOrderStatus(rawOrder?.status),reason:typeof rawOrder?.reason==="string"?rawOrder.reason.trim():"",note:typeof rawOrder?.note==="string"?rawOrder.note.trim():"",createdAt:normalizeImportedCreatedAt(rawOrder?.createdAt),createdSequence:normalizeImportedSequence(rawOrder?.createdSequence),displaySequence:normalizeSequenceNumber(rawOrder?.displaySequence),cancelRequest:normalizeCancelRequest(rawOrder?.cancelRequest)};
 }
 
 function normalizeBuyerName(value){
@@ -1233,6 +1237,12 @@ function formatShortDate(dateKey){
   return new Date(year,month-1,day).toLocaleDateString("en-US",{month:"short",day:"numeric"});
 }
 
+function formatMonthLabel(monthKey){
+  const [year,month]=String(monthKey||"").split("-").map((part)=>Number(part));
+  if(!year||!month){return monthKey||"";}
+  return new Date(year,month-1,1).toLocaleDateString("en-US",{month:"long",year:"numeric"});
+}
+
 function setCalendarMonth(monthKey){
   uiState.activeCalendarMonth=monthKey||getMonthKey(getTodayLocalISO());
   renderSalesCalendar(uiState.store||{});
@@ -1255,6 +1265,7 @@ function sortOrdersForDisplay(orders){
 }
 
 function getOrderDisplaySequence(order){
+  if(Number.isFinite(order?.displaySequence)){return order.displaySequence;}
   if(Number.isFinite(order?.createdSequence)){return order.createdSequence;}
   const parsed=Date.parse(order?.createdAt||"");
   if(!Number.isNaN(parsed)){return parsed;}
@@ -1523,6 +1534,64 @@ async function handleShopeeImport(event){
   }
 }
 
+async function handleShopeeOverallImport(event){
+  const file=event.target?.files?.[0];
+  if(!file){return;}
+  const dateKey=getDateKey();
+  if(!dateKey){
+    showMessage("Select any date in the month before importing Shopee overall orders.","error");
+    resetShopeeOverallImportInput();
+    return;
+  }
+  if(typeof window.XLSX?.read!=="function"||typeof window.XLSX?.utils?.sheet_to_json!=="function"){
+    showMessage("Spreadsheet import is not available right now. Reload the page and try again.","error");
+    resetShopeeOverallImportInput();
+    return;
+  }
+
+  const targetMonth=getMonthKey(dateKey);
+  showMessage(`Importing Shopee overall orders for ${formatMonthLabel(targetMonth)}...`,"success");
+
+  try{
+    const workbook=await readImportWorkbook(file);
+    const rows=getSpreadsheetImportRows(workbook).slice(1);
+    const parsedImport=parseShopeeOverallImportRows(rows,readCatalog());
+    const monthEntries=Array.from(parsedImport.ordersByDate.entries()).filter(([orderDate])=>getMonthKey(orderDate)===targetMonth);
+    const skippedOutsideMonth=Array.from(parsedImport.ordersByDate.keys()).filter((orderDate)=>getMonthKey(orderDate)!==targetMonth).length;
+
+    if(!monthEntries.length){
+      showMessage(`No valid Shopee overall orders were found for ${formatMonthLabel(targetMonth)}.`,"error");
+      resetShopeeOverallImportInput();
+      return;
+    }
+
+    const store=normalizeStore(uiState.store||await readStore());
+    let added=0;
+    let updated=0;
+    monthEntries.forEach(([orderDate,orders])=>{
+      const day=ensureDay(store,orderDate);
+      const result=upsertImportedShopeeOrders(day.platforms.Shopee||[],orders);
+      day.platforms.Shopee=result.orders;
+      added+=result.added;
+      updated+=result.updated;
+    });
+
+    uiState.activePlatform="Shopee";
+    uiState.activeView="orders";
+    await writeStore(store);
+    await renderApp();
+
+    const reviewText=parsedImport.needsReview?` ${parsedImport.needsReview} item line${parsedImport.needsReview===1?"":"s"} need SRP review.`:"";
+    const skippedText=parsedImport.skippedRows||parsedImport.skippedNoDate||skippedOutsideMonth?` Skipped ${parsedImport.skippedRows+parsedImport.skippedNoDate+skippedOutsideMonth} row/date group${parsedImport.skippedRows+parsedImport.skippedNoDate+skippedOutsideMonth===1?"":"s"}.`:"";
+    showMessage(`Shopee overall import complete for ${formatMonthLabel(targetMonth)}. ${added} added, ${updated} updated across ${monthEntries.length} day${monthEntries.length===1?"":"s"}.${reviewText}${skippedText}`,"success");
+  }catch(error){
+    console.error("Unable to import Shopee overall file:",error);
+    showMessage("Could not import that Shopee overall file. Check the file format and try again.","error");
+  }finally{
+    resetShopeeOverallImportInput();
+  }
+}
+
 async function handleLazadaImport(event){
   const file=event.target?.files?.[0];
   if(!file){return;}
@@ -1572,6 +1641,10 @@ async function handleLazadaImport(event){
 
 function resetShopeeImportInput(){
   if(elements.shopeeImportInput){elements.shopeeImportInput.value="";}
+}
+
+function resetShopeeOverallImportInput(){
+  if(elements.shopeeOverallImportInput){elements.shopeeOverallImportInput.value="";}
 }
 
 function resetLazadaImportInput(){
@@ -1681,6 +1754,103 @@ function parseShopeeImportRows(rows,catalog){
   return{orders,needsReview};
 }
 
+function parseShopeeOverallImportRows(rows,catalog){
+  const groupedOrders=new Map();
+  let needsReview=0;
+  let skippedRows=0;
+  let skippedNoDate=0;
+
+  rows.forEach((row,rowIndex)=>{
+    const orderId=sanitizeOrderId(row[0]);
+    if(!orderId){skippedRows+=1;return;}
+
+    const dateKey=getImportedDateKey(row[10]);
+    if(!dateKey){skippedNoDate+=1;return;}
+
+    const skuReference=sanitizeSku(row[14]);
+    const variationName=typeof row[15]==="string"?row[15].trim():String(row[15]||"").trim();
+    const productName=typeof row[13]==="string"?row[13].trim():String(row[13]||"").trim();
+    const itemReference=skuReference||sanitizeSku(variationName);
+    if(!itemReference&&!variationName&&!productName){skippedRows+=1;return;}
+
+    const catalogEntry=findCatalogEntryBySearch(itemReference||variationName||productName,catalog);
+    const lineItem={
+      uid:buildUid("line"),
+      sku:catalogEntry?.sku??itemReference,
+      item:catalogEntry?.item??(productName||variationName||itemReference||"Unknown item"),
+      srp:catalogEntry?.srp??null,
+      qty:1
+    };
+    if(lineItem.srp===null){needsReview+=1;}
+
+    const buyerPayment=normalizeMoney(row[35]);
+    const createdSequence=parseImportSequence(row[10],rowIndex);
+    const createdAt=normalizeImportedCreatedAt(row[10]);
+    const status=normalizeShopeeOverallStatus(row[1]);
+    const cancelReason=typeof row[3]==="string"?row[3].trim():String(row[3]||"").trim();
+    const shippingOption=typeof row[6]==="string"?row[6].trim():String(row[6]||"").trim();
+    const buyerName=normalizeBuyerName(row[42]);
+    const groupKey=`${dateKey}::${orderId}`;
+    const existingGroup=groupedOrders.get(groupKey);
+
+    if(existingGroup){
+      existingGroup.items.push(lineItem);
+      existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
+      if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
+      if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
+      if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
+      if(cancelReason&&!existingGroup.reason){existingGroup.reason=cancelReason;}
+      if(status!=="active"){existingGroup.status=status;}
+      if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
+      return;
+    }
+
+    groupedOrders.set(groupKey,{
+      dateKey,
+      id:orderId,
+      buyerName,
+      items:[lineItem],
+      buyerPayment,
+      courier:normalizeImportedCourier(shippingOption),
+      status,
+      reason:status==="active"?"":cancelReason,
+      createdAt,
+      sequence:createdSequence
+    });
+  });
+
+  const ordersByDate=new Map();
+  Array.from(groupedOrders.values())
+    .filter((order)=>order.items.length)
+    .sort((left,right)=>left.sequence-right.sequence)
+    .forEach((order)=>{
+      const orders=ordersByDate.get(order.dateKey)||[];
+      orders.push({
+        uid:buildUid("order"),
+        id:order.id,
+        buyerName:order.buyerName,
+        items:mergeLineItems(order.items),
+        totalSales:order.status==="active"?order.buyerPayment:null,
+        srpTotal:null,
+        buyerPayment:order.buyerPayment,
+        courier:order.courier,
+        picture:false,
+        pickup:false,
+        invoiceRequested:false,
+        status:order.status,
+        reason:order.reason,
+        note:"",
+        createdAt:order.createdAt,
+        createdSequence:order.sequence,
+        displaySequence:-order.sequence,
+        cancelRequest:null
+      });
+      ordersByDate.set(order.dateKey,orders);
+    });
+
+  return{ordersByDate,needsReview,skippedRows,skippedNoDate};
+}
+
 function parseLazadaImportRows(rows,catalog){
   const groupedOrders=new Map();
   let needsReview=0;
@@ -1770,6 +1940,31 @@ function parseImportSequence(value,rowIndex){
   return Number.isNaN(parsedDate)?rowIndex:parsedDate;
 }
 
+function getImportedDateKey(value){
+  if(value instanceof Date&&!Number.isNaN(value.getTime())){
+    return buildDateKey(value.getFullYear(),value.getMonth()+1,value.getDate());
+  }
+  const rawValue=typeof value==="string"?value.trim():"";
+  if(!rawValue){return "";}
+  const parsedDate=Date.parse(rawValue);
+  if(Number.isNaN(parsedDate)){return "";}
+  const date=new Date(parsedDate);
+  return buildDateKey(date.getFullYear(),date.getMonth()+1,date.getDate());
+}
+
+function normalizeShopeeOverallStatus(value){
+  const normalized=String(value||"").trim().toLowerCase();
+  if(normalized.includes("return")||normalized.includes("refund")){return "returned";}
+  if(normalized.includes("cancel")){return "cancelled";}
+  return "active";
+}
+
+function normalizeSequenceNumber(value){
+  if(value===""||value===null||value===undefined){return null;}
+  const amount=Number(value);
+  return Number.isFinite(amount)?amount:null;
+}
+
 function normalizeImportedSequence(value){
   const sequence=normalizeMoney(value);
   return sequence===null?null:sequence;
@@ -1819,12 +2014,16 @@ function upsertImportedOrders(existingOrders,importedOrders){
     if(existingOrder){
       existingOrder.items=importedOrder.items;
       if(importedOrder.buyerName){existingOrder.buyerName=importedOrder.buyerName;}
+      if(importedOrder.totalSales!==null&&importedOrder.totalSales!==undefined){existingOrder.totalSales=importedOrder.totalSales;}
       existingOrder.buyerPayment=importedOrder.buyerPayment;
       existingOrder.courier=importedOrder.courier;
       existingOrder.invoiceRequested=importedOrder.invoiceRequested;
+      existingOrder.status=normalizeOrderStatus(importedOrder.status);
+      existingOrder.reason=typeof importedOrder.reason==="string"?importedOrder.reason:"";
       existingOrder.note=importedOrder.note;
       existingOrder.createdAt=importedOrder.createdAt;
       existingOrder.createdSequence=importedOrder.createdSequence;
+      existingOrder.displaySequence=importedOrder.displaySequence;
       updated+=1;
       return;
     }
