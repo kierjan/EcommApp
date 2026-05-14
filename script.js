@@ -1832,7 +1832,7 @@ function parseShopeeOverallImportRows(rows,catalog){
         id:order.id,
         buyerName:order.buyerName,
         items:mergeLineItems(order.items),
-        totalSales:order.status==="active"?order.buyerPayment:null,
+        totalSales:null,
         srpTotal:null,
         buyerPayment:order.buyerPayment,
         courier:order.courier,
