@@ -1786,8 +1786,10 @@ function parseShopeeOverallImportRows(rows,catalog){
     const buyerPayment=normalizeMoney(row[35]);
     const createdSequence=parseImportSequence(row[10],rowIndex);
     const createdAt=normalizeImportedCreatedAt(row[10]);
-    const status=normalizeShopeeOverallStatus(row[1]);
+    const returnRequestStatus=typeof row[4]==="string"?row[4].trim():String(row[4]||"").trim();
+    const status=normalizeShopeeOverallStatus(row[1],returnRequestStatus);
     const cancelReason=typeof row[3]==="string"?row[3].trim():String(row[3]||"").trim();
+    const archiveReason=getShopeeOverallArchiveReason(status,cancelReason,returnRequestStatus,row[1]);
     const shippingOption=typeof row[6]==="string"?row[6].trim():String(row[6]||"").trim();
     const buyerName=normalizeBuyerName(row[42]);
     const groupKey=`${dateKey}::${orderId}`;
@@ -1799,7 +1801,7 @@ function parseShopeeOverallImportRows(rows,catalog){
       if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
       if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
       if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
-      if(cancelReason&&!existingGroup.reason){existingGroup.reason=cancelReason;}
+      if(archiveReason&&!existingGroup.reason){existingGroup.reason=archiveReason;}
       if(status!=="active"){existingGroup.status=status;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
       return;
@@ -1813,7 +1815,7 @@ function parseShopeeOverallImportRows(rows,catalog){
       buyerPayment,
       courier:normalizeImportedCourier(shippingOption),
       status,
-      reason:status==="active"?"":cancelReason,
+      reason:archiveReason,
       createdAt,
       sequence:createdSequence
     });
@@ -1952,11 +1954,20 @@ function getImportedDateKey(value){
   return buildDateKey(date.getFullYear(),date.getMonth()+1,date.getDate());
 }
 
-function normalizeShopeeOverallStatus(value){
+function normalizeShopeeOverallStatus(value,returnRequestStatus=""){
   const normalized=String(value||"").trim().toLowerCase();
-  if(normalized.includes("return")||normalized.includes("refund")){return "returned";}
+  const normalizedRequest=String(returnRequestStatus||"").trim().toLowerCase();
+  if(normalizedRequest.includes("request approved")){return "returned";}
   if(normalized.includes("cancel")){return "cancelled";}
   return "active";
+}
+
+function getShopeeOverallArchiveReason(status,cancelReason,returnRequestStatus,orderStatus){
+  if(status==="active"){return "";}
+  if(status==="returned"){
+    return String(returnRequestStatus||"").trim()||String(orderStatus||"").trim()||"Request approved";
+  }
+  return String(cancelReason||"").trim()||String(orderStatus||"").trim()||"Cancelled";
 }
 
 function normalizeSequenceNumber(value){
