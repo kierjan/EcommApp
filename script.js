@@ -1827,13 +1827,16 @@ function parseShopeeOverallImportRows(rows,catalog){
     const itemReference=skuReference||sanitizeSku(variationName);
     if(!itemReference&&!variationName&&!productName){skippedRows+=1;return;}
 
+    const quantity=normalizeQuantity(row[18]);
+    if(quantity===null){skippedRows+=1;return;}
+
     const catalogEntry=findCatalogEntryBySearch(itemReference||variationName||productName,catalog);
     const lineItem={
       uid:buildUid("line"),
       sku:catalogEntry?.sku??itemReference,
       item:catalogEntry?.item??(productName||variationName||itemReference||"Unknown item"),
       srp:catalogEntry?.srp??null,
-      qty:1
+      qty:quantity
     };
     if(lineItem.srp===null){needsReview+=1;}
 
