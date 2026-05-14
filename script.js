@@ -1857,7 +1857,7 @@ function parseShopeeOverallImportRows(rows,catalog){
       existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
       if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
       if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
-      if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
+      if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       if(archiveReason&&!existingGroup.reason){existingGroup.reason=archiveReason;}
       if(status!=="active"){existingGroup.status=status;}
       if(!existingGroup.courier){existingGroup.courier=normalizeImportedCourier(shippingOption);}
