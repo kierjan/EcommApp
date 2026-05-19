@@ -102,6 +102,40 @@
           <button type="button" class="secondary-btn" id="previewSummaryBtn">Preview Summary</button>
         </div>
       </section>
+
+      <section class="panel admin-panel" aria-labelledby="admin-title">
+        <div class="section-heading">
+          <p class="section-label">Settings</p>
+          <h2 id="admin-title">Admin tools</h2>
+        </div>
+
+        <div class="admin-login" id="adminLogin">
+          <label class="field">
+            <span>Password</span>
+            <input type="password" id="adminPassword" placeholder="Enter admin password" autocomplete="off">
+          </label>
+          <button type="button" class="secondary-btn compact-btn" id="adminUnlockBtn">Unlock</button>
+        </div>
+
+        <div class="admin-tools" id="adminTools" hidden>
+          <div class="admin-grid">
+            <label class="field">
+              <span>Month</span>
+              <input type="month" id="adminClearMonth">
+            </label>
+            <label class="field">
+              <span>Marketplace</span>
+              <select id="adminClearMarketplace">
+                <option value="all">All marketplaces</option>
+                <option value="Shopee">Shopee</option>
+                <option value="Lazada">Lazada</option>
+                <option value="TikTok">TikTok</option>
+              </select>
+            </label>
+          </div>
+          <button type="button" class="danger-btn compact-btn" id="adminClearBtn">Clear Selected Data</button>
+        </div>
+      </section>
     </div>
 
     <section class="audit-strip panel" aria-labelledby="audit-title">
@@ -523,7 +557,7 @@
   <script src="firebase-config.js?v=20260418-1500"></script>
   <script type="module" src="firebase-service.js?v=20260418-1500"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="script.js?v=20260514-order-search-locate" defer></script>
+  <script src="script.js?v=20260519-admin-clear" defer></script>
   <script src="summary-status-fix.js?v=20260506-summary-sku-lines" defer></script>
   <script src="summary-preview.js?v=20260505-live" defer></script>
 </body>

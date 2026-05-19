@@ -135,13 +135,14 @@ button {
 
 .controls-panel,
 .approval-panel,
+.admin-panel,
 .sku-panel {
   margin-bottom: 12px;
 }
 
 .top-panels {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: stretch;
   margin-bottom: 10px;
@@ -150,18 +151,21 @@ button {
 }
 
 .top-panels .controls-panel,
-.top-panels .approval-panel {
+.top-panels .approval-panel,
+.top-panels .admin-panel {
   margin-bottom: 0;
   height: 100%;
 }
 
-.top-panels .controls-panel {
+.top-panels .controls-panel,
+.top-panels .admin-panel {
   padding: 10px;
   display: flex;
   flex-direction: column;
 }
 
-.top-panels .controls-panel .section-heading {
+.top-panels .controls-panel .section-heading,
+.top-panels .admin-panel .section-heading {
   margin-bottom: 10px;
 }
 
@@ -309,6 +313,36 @@ button {
 .top-panels .approval-panel .approval-grid,
 .top-panels .controls-panel .controls-grid {
   flex: 1 1 auto;
+}
+
+.admin-login,
+.admin-tools {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-login {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.danger-btn {
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: var(--danger);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.danger-btn:hover {
+  filter: brightness(0.94);
 }
 
 .audit-strip {

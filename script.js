@@ -6,12 +6,13 @@ const courierOptions=["J&T","Flash","SPX"];
 const orderStatuses=["active","cancelled","returned"];
 const defaultApproval={preparedBy:"Adrian 1",checkedBy:"Larah"};
 const elements={};
-const uiState={activeView:"orders",activePlatform:"Shopee",activeCalendarMonth:"",drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
+const uiState={activeView:"orders",activePlatform:"Shopee",activeCalendarMonth:"",adminUnlocked:false,drafts:{},draftOpen:{},expandedLineId:null,openCancelRequestOrderId:null,cancelRequestDrafts:{},recentlySavedReasonId:null,orderSearch:"",store:{},sync:{mode:"checking",label:"Checking sync",detail:"Waiting for Firebase status...",meta:"Local cache stays available if the connection drops."}};
 
 document.addEventListener("DOMContentLoaded",async()=>{
   cacheElements();
   bindEvents();
   elements.date.value=getTodayLocalISO();
+  elements.adminClearMonth.value=getCurrentMonthLocal();
   ensureDraftState();
   applySavedTheme();
   await waitForFirebaseBridge();
@@ -50,6 +51,13 @@ function cacheElements(){
   elements.calendarPrevBtn=document.getElementById("calendarPrevBtn");
   elements.calendarTodayBtn=document.getElementById("calendarTodayBtn");
   elements.calendarNextBtn=document.getElementById("calendarNextBtn");
+  elements.adminLogin=document.getElementById("adminLogin");
+  elements.adminTools=document.getElementById("adminTools");
+  elements.adminPassword=document.getElementById("adminPassword");
+  elements.adminUnlockBtn=document.getElementById("adminUnlockBtn");
+  elements.adminClearMonth=document.getElementById("adminClearMonth");
+  elements.adminClearMarketplace=document.getElementById("adminClearMarketplace");
+  elements.adminClearBtn=document.getElementById("adminClearBtn");
   elements.viewTabs=Array.from(document.querySelectorAll("[data-view-tab]"));
   elements.viewTabBadges={
     orders:document.querySelector('[data-view-count="orders"]'),
@@ -152,6 +160,14 @@ function bindEvents(){
   elements.shopeeOverallImportInput?.addEventListener("change",(event)=>{void handleShopeeOverallImport(event);});
   elements.importLazadaBtn?.addEventListener("click",()=>elements.lazadaImportInput?.click());
   elements.lazadaImportInput?.addEventListener("change",(event)=>{void handleLazadaImport(event);});
+  elements.adminUnlockBtn?.addEventListener("click",handleAdminUnlock);
+  elements.adminPassword?.addEventListener("keydown",(event)=>{
+    if(event.key==="Enter"){
+      event.preventDefault();
+      handleAdminUnlock();
+    }
+  });
+  elements.adminClearBtn?.addEventListener("click",()=>{void handleAdminClearData();});
   elements.markAllPicture.addEventListener("change",()=>{void applyBatchOrderCheck("picture",elements.markAllPicture.checked);});
   elements.courierPickupChecks.forEach((checkbox)=>{
     checkbox.addEventListener("change",()=>{void applyCourierPickupCheck(checkbox.dataset.courierPickup,checkbox.checked);});
@@ -191,6 +207,10 @@ function getTodayLocalISO(){
   const now=new Date();
   const local=new Date(now.getTime()-now.getTimezoneOffset()*60000);
   return local.toISOString().split("T")[0];
+}
+
+function getCurrentMonthLocal(){
+  return getTodayLocalISO().slice(0,7);
 }
 
 function getDateKey(){return elements.date.value;}
@@ -1542,6 +1562,79 @@ async function saveApproval(){
   await writeDay(dateKey,day,{suppressMessage:true});
 }
 
+function handleAdminUnlock(){
+  if(elements.adminPassword.value!=="admin"){
+    showMessage("Wrong admin password.","error");
+    elements.adminPassword.focus();
+    return;
+  }
+  uiState.adminUnlocked=true;
+  elements.adminLogin.hidden=true;
+  elements.adminTools.hidden=false;
+  elements.adminClearMonth.value=elements.adminClearMonth.value||getCurrentMonthLocal();
+  showMessage("Admin tools unlocked.","success");
+}
+
+async function handleAdminClearData(){
+  if(!uiState.adminUnlocked){
+    showMessage("Unlock admin tools first.","error");
+    return;
+  }
+  const month=elements.adminClearMonth.value;
+  const marketplace=elements.adminClearMarketplace.value;
+  if(!/^\d{4}-\d{2}$/.test(month)){
+    showMessage("Select a valid month to clear.","error");
+    elements.adminClearMonth.focus();
+    return;
+  }
+  const targetPlatforms=marketplace==="all"?platforms:[marketplace];
+  if(targetPlatforms.some((platform)=>!platforms.includes(platform))){
+    showMessage("Select a valid marketplace to clear.","error");
+    return;
+  }
+
+  const targetLabel=marketplace==="all"?"all marketplaces":marketplace;
+  const confirmed=window.confirm(`Clear ${targetLabel} orders for ${month}? This cannot be undone.`);
+  if(!confirmed){return;}
+
+  showMessage(`Clearing ${targetLabel} for ${month}...`,"success");
+  const store=normalizeStore(await readStore({forceReload:true}));
+  const dateKeys=Object.keys(store).filter((dateKey)=>dateKey.startsWith(`${month}-`)).sort();
+  if(!dateKeys.length){
+    showMessage(`No saved data found for ${month}.`,"error");
+    return;
+  }
+
+  let removed=0;
+  let changedDays=0;
+  for(const dateKey of dateKeys){
+    const day=ensureDay(store,dateKey);
+    let changed=false;
+    targetPlatforms.forEach((platform)=>{
+      const existing=day.platforms[platform]||[];
+      if(existing.length){
+        removed+=existing.length;
+        day.platforms[platform]=[];
+        changed=true;
+      }
+    });
+    if(changed){
+      changedDays+=1;
+      await writeDay(dateKey,day,{suppressMessage:true});
+    }
+  }
+
+  if(!removed){
+    showMessage(`No ${targetLabel} orders found for ${month}.`,"error");
+    return;
+  }
+
+  if(getDateKey().startsWith(`${month}-`)){
+    await renderApp();
+  }
+  showMessage(`Cleared ${removed} ${targetLabel} order${removed===1?"":"s"} from ${changedDays} day${changedDays===1?"":"s"} in ${month}.`,"success");
+}
+
 async function handleShopeeImport(event){
   const file=event.target?.files?.[0];
   if(!file){return;}
@@ -1569,7 +1662,7 @@ async function handleShopeeImport(event){
       return;
     }
 
-    const store=normalizeStore(uiState.store||await readStore());
+    const store=normalizeStore(await readStore({forceReload:true}));
     const day=ensureDay(store,dateKey);
     const result=upsertImportedShopeeOrders(day.platforms.Shopee||[],parsedImport.orders);
     day.platforms.Shopee=result.orders;
@@ -1619,7 +1712,7 @@ async function handleShopeeOverallImport(event){
       return;
     }
 
-    const store=normalizeStore(uiState.store||await readStore());
+    const store=normalizeStore(await readStore({forceReload:true}));
     let added=0;
     let updated=0;
     monthEntries.forEach(([orderDate,orders])=>{
@@ -1674,7 +1767,7 @@ async function handleLazadaImport(event){
       return;
     }
 
-    const store=normalizeStore(uiState.store||await readStore());
+    const store=normalizeStore(await readStore({forceReload:true}));
     const day=ensureDay(store,dateKey);
     const result=upsertImportedOrders(day.platforms.Lazada||[],parsedImport.orders);
     day.platforms.Lazada=result.orders;
@@ -1742,7 +1835,7 @@ function parseShopeeImportRows(rows,catalog){
     const variationName=typeof row[14]==="string"?row[14].trim():String(row[14]||"").trim();
     if(!skuReference&&!variationName){return;}
     const buyerName=normalizeBuyerName(row[41]);
-    const buyerPayment=normalizeMoney(row[34]);
+    const buyerPayment=normalizeMoney(row[40]);
     const note=typeof row[53]==="string"?row[53].trim():String(row[53]||"").trim();
     const invoiceRequestType=typeof row[54]==="string"?row[54].trim():String(row[54]||"").trim();
     const catalogEntry=findCatalogEntryBySearch(skuReference||variationName,catalog);
@@ -1840,7 +1933,7 @@ function parseShopeeOverallImportRows(rows,catalog){
     };
     if(lineItem.srp===null){needsReview+=1;}
 
-    const buyerPayment=normalizeMoney(row[35]);
+    const buyerPayment=normalizeMoney(row[40]);
     const createdSequence=parseImportSequence(row[10],rowIndex);
     const createdAt=normalizeImportedCreatedAt(row[10]);
     const returnRequestStatus=typeof row[4]==="string"?row[4].trim():String(row[4]||"").trim();
@@ -1942,7 +2035,7 @@ function parseLazadaImportRows(rows,catalog){
       existingGroup.sequence=Math.max(existingGroup.sequence,createdSequence);
       if(!existingGroup.createdAt&&createdAt){existingGroup.createdAt=createdAt;}
       if(buyerName&&!existingGroup.buyerName){existingGroup.buyerName=buyerName;}
-      if(buyerPayment!==null){existingGroup.buyerPayment=(existingGroup.buyerPayment||0)+buyerPayment;}
+      if(existingGroup.buyerPayment===null&&buyerPayment!==null){existingGroup.buyerPayment=buyerPayment;}
       return;
     }
 
